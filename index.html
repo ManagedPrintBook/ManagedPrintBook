@@ -1873,17 +1873,58 @@ showTab('customers'); renderBell(); updateNav(); bkCheck(true); setInterval(()=>
 document.addEventListener('click',e=>{ if(!e.target.closest('.bellwrap')) closeBell(); });
 
 </script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<div id="cloudBox" style="position:fixed;inset:0;z-index:10000;background:#f4f6fa;display:none;align-items:center;justify-content:center;font-family:system-ui,Arial">
-  <div style="background:#fff;border:1px solid #dfe3ea;border-radius:12px;padding:26px;width:340px;box-shadow:0 10px 30px rgba(0,0,0,.08)">
-    <h2 style="margin:0 0 4px;font-size:1.15rem">Managed Print Contracts &amp; Billing</h2>
-    <div style="color:#667;font-size:.85rem;margin-bottom:14px">Sign in to sync your data across devices</div>
-    <input id="cl_email" type="email" placeholder="Email" style="width:100%;padding:9px;margin-bottom:8px;border:1px solid #cfd4dc;border-radius:6px;box-sizing:border-box">
-    <input id="cl_pass" type="password" placeholder="Password (min 6 characters)" style="width:100%;padding:9px;margin-bottom:10px;border:1px solid #cfd4dc;border-radius:6px;box-sizing:border-box" onkeydown="if(event.key==='Enter')cloudAuth('in')">
-    <div id="cl_msg" style="min-height:18px;font-size:.82rem;color:#c0392b;margin-bottom:8px"></div>
-    <div style="display:flex;gap:8px"><button onclick="cloudAuth('in')" style="flex:1;padding:9px;background:#2563eb;color:#fff;border:0;border-radius:6px;cursor:pointer">Sign in</button><button onclick="cloudAuth('up')" style="flex:1;padding:9px;background:#fff;border:1px solid #2563eb;color:#2563eb;border-radius:6px;cursor:pointer">Create account</button></div>
-    <div style="margin-top:12px;font-size:.8rem;display:flex;justify-content:space-between"><a href="#" onclick="cloudAuth('reset');return false">Forgot password?</a><a href="#" onclick="cloudOffline();return false">Work offline</a></div>
+<style>
+#cloudBox{position:fixed;inset:0;z-index:10000;display:none;font-family:Inter,"Segoe UI",system-ui,Arial,sans-serif;background:#f5f6f8}
+#cloudBox .cl-wrap{display:flex;min-height:100%;width:100%}
+#cloudBox .cl-hero{flex:1.15;background:linear-gradient(150deg,#14213d 0%,#1e2a4a 60%,#26365e 100%);color:#fff;padding:48px 56px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden}
+#cloudBox .cl-hero:after{content:"";position:absolute;right:-120px;bottom:-120px;width:380px;height:380px;border-radius:50%;background:rgba(242,165,65,.12)}
+#cloudBox .cl-logo{background:#fff;border-radius:12px;padding:8px 14px;display:inline-flex;align-items:center;width:max-content}
+#cloudBox .cl-logo img{height:44px;display:block}
+#cloudBox .cl-hero h1{font-family:"Space Grotesk",Inter,sans-serif;font-size:2.15rem;line-height:1.2;margin:0 0 16px;max-width:520px;font-weight:600}
+#cloudBox .cl-hero p{color:#c9d0e2;max-width:480px;line-height:1.6;margin:0 0 22px}
+#cloudBox .cl-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+#cloudBox .cl-chip{border:1px solid rgba(242,165,65,.6);color:#f2a541;border-radius:20px;padding:4px 14px;font-size:.78rem;font-weight:600;letter-spacing:.6px}
+#cloudBox .cl-chip.em{border-color:rgba(255,255,255,.3);color:#c9d0e2}
+#cloudBox .cl-side{flex:1;display:flex;align-items:center;justify-content:center;padding:28px}
+#cloudBox .cl-card{background:#fff;border:1px solid #e2e5ec;border-radius:16px;padding:30px;width:100%;max-width:400px;box-shadow:0 12px 36px rgba(20,33,61,.1)}
+#cloudBox .cl-card h2{margin:0 0 4px;font-family:"Space Grotesk",Inter,sans-serif;font-size:1.25rem;color:#1b2540}
+#cloudBox .cl-sub{color:#5b6478;font-size:.85rem;margin-bottom:16px}
+#cloudBox .cl-tabs{display:flex;background:#f0f2f6;border-radius:10px;padding:4px;margin-bottom:16px}
+#cloudBox .cl-tabs button{flex:1;border:0;background:transparent;padding:8px;border-radius:8px;font-weight:600;color:#5b6478;cursor:pointer;font-size:.88rem}
+#cloudBox .cl-tabs button.on{background:#fff;color:#14213d;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+#cloudBox label{display:block;font-size:.78rem;font-weight:600;color:#5b6478;margin:0 0 4px}
+#cloudBox input{width:100%;padding:11px 12px;border:1px solid #d5d9e2;border-radius:9px;box-sizing:border-box;font-size:.92rem;margin-bottom:12px;outline:none}
+#cloudBox input:focus{border-color:#f2a541;box-shadow:0 0 0 3px #fdf1de}
+#cloudBox .cl-go{width:100%;padding:12px;background:#f2a541;color:#14213d;border:0;border-radius:9px;font-weight:700;font-size:.95rem;cursor:pointer}
+#cloudBox .cl-go:hover{background:#e0912a}
+#cloudBox .cl-links{margin-top:14px;font-size:.8rem;display:flex;justify-content:space-between}
+#cloudBox .cl-links a{color:#2f6fed;text-decoration:none}
+#cloudBox .cl-mlogo{display:none}
+@media(max-width:820px){#cloudBox .cl-hero{display:none}#cloudBox .cl-mlogo{display:block!important}}
+</style>
+<div id="cloudBox"><div class="cl-wrap">
+  <div class="cl-hero">
+    <div class="cl-logo"><img class="cl-img" alt="Manchester Technology"></div>
+    <div>
+      <h1>Every contract, reading and invoice — tracked from lease start to final bill.</h1>
+      <p>Manage lease, FSMA, ORS and sales customers, meter readings, quotations and toner orders — all in one secure system that follows you on every device.</p>
+      <div class="cl-chips"><span class="cl-chip">LEASE</span><span class="cl-chip">FSMA</span><span class="cl-chip">ORS</span><span class="cl-chip">SALES</span></div>
+      <div class="cl-chips"><span class="cl-chip em">DXB</span><span class="cl-chip em">SHJ</span><span class="cl-chip em">AUH</span></div>
+    </div>
+    <div style="color:#8e99b5;font-size:.78rem;position:relative;z-index:1">© Manchester Technology LLC</div>
   </div>
-</div>
+  <div class="cl-side"><div class="cl-card">
+    <div style="text-align:center;margin-bottom:10px" class="cl-mlogo"><img class="cl-img" alt="" style="height:38px"></div>
+    <h2 id="cl_title">Sign in to Managed Print Contracts &amp; Billing</h2>
+    <div class="cl-sub" id="cl_sub">Use your email and password to open your data.</div>
+    <div class="cl-tabs"><button id="clt_in" class="on" onclick="cloudTab('in')">Sign in</button><button id="clt_up" onclick="cloudTab('up')">Create account</button></div>
+    <label for="cl_email">Email</label><input id="cl_email" type="email" placeholder="you@company.com" autocomplete="username">
+    <label for="cl_pass">Password</label><input id="cl_pass" type="password" placeholder="At least 6 characters" autocomplete="current-password" onkeydown="if(event.key==='Enter')cloudAuth(cloudMode)">
+    <div id="cl_msg" style="min-height:18px;font-size:.82rem;color:#dc2626;margin:-2px 0 10px"></div>
+    <button class="cl-go" id="cl_go" onclick="cloudAuth(cloudMode)">Sign in</button>
+    <div class="cl-links"><a href="#" onclick="cloudAuth('reset');return false">Forgot password?</a><a href="#" onclick="cloudOffline();return false">Work offline</a></div>
+  </div></div>
+</div></div>
 <div id="cloudPill" style="position:fixed;left:10px;bottom:10px;z-index:9998;background:#fff;border:1px solid #cfd4dc;border-radius:20px;padding:4px 12px;font:12px system-ui,Arial;color:#445;box-shadow:0 2px 8px rgba(0,0,0,.1)"><span id="cloudTxt">☁ …</span> <a href="#" id="cloudOut" onclick="cloudOut();return false" style="display:none;margin-left:8px">Sign out</a></div>
 <script>
 (function(){
@@ -1912,6 +1953,9 @@ document.addEventListener('click',e=>{ if(!e.target.closest('.bellwrap')) closeB
       if(mode==='up'){ const r=await sb.auth.signUp({email,password}); if(r.error) throw r.error; if(r.data.session) await onIn(r.data.user); else { g('cl_msg').style.color='#2a7'; msg('Account created. Check your email to confirm, then sign in.'); } }
       else { const r=await sb.auth.signInWithPassword({email,password}); if(r.error) throw r.error; await onIn(r.data.user); }
     }catch(e){ g('cl_msg').style.color='#c0392b'; msg(e.message||String(e)); } };
+  window.cloudMode='in';
+  window.cloudTab=function(m){ window.cloudMode=m; g('clt_in').classList.toggle('on',m==='in'); g('clt_up').classList.toggle('on',m==='up'); g('cl_go').textContent=m==='in'?'Sign in':'Create account'; g('cl_title').textContent=m==='in'?'Sign in to Managed Print Contracts & Billing':'Create your account'; g('cl_sub').textContent=m==='in'?'Use your email and password to open your data.':'Choose an email and a password of at least 6 characters.'; g('cl_pass').autocomplete=m==='in'?'current-password':'new-password'; msg(''); };
+  try{ const lg=document.querySelector('.logo-box img'); if(lg&&lg.src) document.querySelectorAll('#cloudBox .cl-img').forEach(i=>i.src=lg.src); }catch(e){}
   window.cloudOut=async function(){ if(sb) await sb.auth.signOut(); uid=null; showLogin(); };
   window.cloudOffline=function(){ g('cloudBox').style.display='none'; uid=null; pill('⚠ Offline — not syncing'); };
   (async function(){ if(!window.supabase){ showLogin(); msg('Cloud library could not load (offline?). You can work offline.'); return; }
