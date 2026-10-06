@@ -225,45 +225,22 @@ table.cptab td{padding:6px 6px;white-space:nowrap}table.cptab td .zin{padding:7p
 @media(max-width:700px){.cd{min-height:64px}.cc{display:none}.cd .cm{display:none}}
 .lossrow td{background:#fff6f6}
 
-/* ===== Zoho-style professional theme ===== */
-:root{--blue:#408dfb}
+/* ===== top navigation: 5 headings side by side, click to expand down ===== */
 body{-webkit-user-select:text;user-select:text}
-button,.btn,.nav,#side a,#side .sd-gh{-webkit-user-select:none;user-select:none}
-#nav{display:none!important}
+button,.btn,.nav button,.nd a{-webkit-user-select:none;user-select:none}
 #slNav{display:none!important}
-#side{position:fixed;left:0;top:0;bottom:0;width:232px;background:#fff;border-right:1px solid #e5e7eb;overflow-y:auto;z-index:60;padding:12px 10px 20px;box-sizing:border-box}
-#side .sd-logo{padding:4px 8px 14px;border-bottom:1px solid #eef0f4;margin-bottom:10px}
-#side .sd-logo img{height:40px;max-width:100%;display:block}
-#side .sd-gh{display:flex;justify-content:space-between;align-items:center;padding:9px 10px;font-weight:700;font-size:.8rem;letter-spacing:.02em;color:#1b2540;cursor:pointer;border-radius:8px}
-#side .sd-gh:hover{background:#f4f6fa}
-#side .sd-gh b{font-size:.7rem;color:#8a93a6;transition:transform .15s}
-#side .sd-g.shut .sd-gh b{transform:rotate(-90deg)}
-#side .sd-items a{display:block;padding:8px 10px 8px 32px;font-size:.84rem;color:#4b5468;text-decoration:none;border-radius:8px;margin:1px 0}
-#side .sd-items a:hover{background:#f4f6fa}
-#side .sd-items a.on{background:var(--blue);color:#fff;font-weight:600}
-#side .sd-g.shut .sd-items{display:none}
-.hdr{background:#fff!important;color:var(--text)!important;margin-left:232px;border-bottom:1px solid var(--border);padding:8px 24px!important;position:sticky;top:0;z-index:50}
-.hdr .logo-box{display:none;box-shadow:none}
-.hdr .ttl{color:#1b2540!important;font-size:1.05rem!important;font-weight:700!important}
-#sdBurger{display:none;border:1px solid #d5d9e2;background:#fff;border-radius:8px;font-size:1.1rem;padding:5px 10px;cursor:pointer}
-#sdShade{display:none;position:fixed;inset:0;background:rgba(15,23,42,.4);z-index:55}
-#backupBar{margin-left:232px}
-.page{max-width:none!important;margin:20px 0 48px 232px!important;padding:0 28px!important}
-.btn{background:var(--blue);border-color:var(--blue);color:#fff}
-.btn:hover{background:#2f7bec}
-.btn.ghost{background:#fff;border-color:#d5d9e2;color:#1b2540}
-.btn.ghost:hover{background:#f4f6fa}
-.btn.danger{background:#fff;color:var(--danger)}
-thead th{background:#f7f8fb!important;color:#6c7184!important;text-transform:uppercase;font-size:.69rem!important;letter-spacing:.05em;border-bottom:1px solid var(--border)}
-tbody tr:hover td{background:#fafbfe}
-.card{border-radius:10px}
-#cloudPill{left:244px!important}
-@media(max-width:900px){#side{transform:translateX(-100%);transition:transform .2s}#side.open{transform:none;box-shadow:0 0 30px rgba(0,0,0,.25)}#sdShade.open{display:block}.hdr,#backupBar{margin-left:0!important}.page{margin-left:0!important;padding:0 12px!important}#sdBurger{display:inline-block}.hdr .logo-box{display:flex}#cloudPill{left:10px!important}}
+.nav{overflow:visible!important;flex-wrap:wrap;position:relative;z-index:70}
+.nv{position:relative}
+.nav .ng{font-size:.9rem}
+.nav .ng small{font-size:.65rem;opacity:.7;margin-left:3px}
+.nd{display:none;position:absolute;top:100%;left:0;min-width:220px;background:#fff;border:1px solid var(--border);border-radius:0 0 12px 12px;box-shadow:0 12px 28px rgba(20,33,61,.18);padding:6px;z-index:90}
+.nv.open .nd{display:block}
+.nd a{display:block;padding:10px 14px;color:var(--navy);font-weight:600;font-size:.86rem;border-radius:8px;text-decoration:none;white-space:nowrap}
+.nd a:hover{background:var(--amber-soft)}
+.nd a.on{background:var(--amber-soft);color:#b26a00}
 </style></head><body>
-<aside id="side"><div class="sd-logo"><img data-logo alt="Manchester Technology LLC"></div><div id="sdMenu"></div></aside><div id="sdShade" onclick="sdToggle()"></div>
 
 <div class="hdr">
-  <button id="sdBurger" onclick="sdToggle()">☰</button>
   <div class="logo-box"><img data-logo alt="Manchester Technology LLC"></div>
   <div class="ttl">Managed Print Contracts &amp; Billing</div>
   <div class="right"><input class="hsr" id="hdrSearch" onfocus="srSuggest(this)" onblur="setTimeout(srHide,180)" oninput="srSuggest(this)" autocomplete="off" placeholder="🔍 Search Sr.# → machine history" onkeydown="if(event.key==='Enter')serialSearch(this.value)"><button class="btn sm" onclick="openScan()">📷 Scan Sr.#</button><span class="pill" id="storageBadge">checking storage…</span><div class="bellwrap"><button class="bell" id="bellBtn" title="Contract notifications" onclick="toggleBell(event)">🔔<span class="bcount" id="bellCount"></span></button><div class="bellpanel" id="bellPanel" onclick="event.stopPropagation()"></div></div></div>
@@ -1913,13 +1890,13 @@ function slExtra(){ const t=todayISO(); return DB.stock.filter(s=>s.qty<=s.min).
 function slBellSec(S,sec,empty,rl){ const E=slExtra(); return sec('🛒 Sales — toner / ink',S.length+E.length,S.some(x=>x.st==='overdue'||x.st==='lapsed'))+((S.length||E.length)?S.map(x=>{ const bad=x.st==='overdue'||x.st==='lapsed'; return '<div class="bitem '+(bad?'bad':'warn')+'"><div><b>'+esc(x.c.name)+'</b><div style="margin:2px 0">'+slBadge(x)+'</div><div class="kdept">'+(x.last?'Last order '+fmtDMY(x.last):'No purchase yet')+(x.fu?' · Follow-up '+fmtDMY(x.fu)+(x.pl.fuNote?': '+esc(x.pl.fuNote):''):'')+'</div>'+rl('s:'+x.c.id)+'</div><div class="actions"><button class="btn sm ghost" onclick="slWA(\''+x.c.id+'\')">💬 Remind</button><button class="btn sm ghost" onclick="closeBell();showTab(\'sales\')">Open</button></div></div>'; }).join('')+E.map(e=>e.t==='stock'?'<div class="bitem warn"><div><b>Low stock: '+esc(e.s.item)+'</b><div class="kdept">'+e.s.qty+' left (alert at '+e.s.min+')</div></div><div class="actions"><button class="btn sm ghost" onclick="closeBell();showTab(\'sales\');slView(\'S\')">Open</button></div></div>':'<div class="bitem warn"><div><b>'+esc(cn(e.m.cid))+'</b><div style="margin:2px 0">Warranty '+(e.m.wEnd<todayISO()?'ended ':'ends ')+fmtDMY(e.m.wEnd)+' · '+esc(e.m.model)+'</div><div class="kdept">Offer an AMC</div>'+rl('m:'+e.m.id)+'</div><div class="actions"><button class="btn sm ghost" onclick="msAmc(\''+e.m.id+'\')">💬 Offer AMC</button><button class="btn sm ghost" onclick="closeBell();showTab(\'sales\');slView(\'M\')">Open</button></div></div>').join(''):empty('✅ No toner / ink orders due.')); }
 /* ===== sidebar navigation (Customers / Items / Sales / Accounts / Admin) ===== */
 const SD=[{g:'Customers',i:'👥',items:[['Customers','customers']]},{g:'Items',i:'📦',items:[['Stock & Pricing','sales','S'],['Machines','sales','M']]},{g:'Sales',i:'🛒',items:[['Quotes','sales','Q'],['Orders & Follow-ups','sales','main'],['Invoices','inv'],['Sales Overview','sales','D']]},{g:'Accounts',i:'🧾',items:[['Dashboard','dash'],['Reading Run','run'],['Payments & Statements','pay'],['Profitability','profit'],['Calendar','cal']]},{g:'Admin',i:'⚙️',items:[['Users','admin']]}];
-function sdBuild(){ $('sdMenu').innerHTML=SD.map((G,gi)=>'<div class="sd-g" id="sdg'+gi+'"><div class="sd-gh" onclick="this.parentNode.classList.toggle(\'shut\')"><span>'+G.i+' '+G.g.toUpperCase()+'</span><b>▾</b></div><div class="sd-items">'+G.items.map(it=>'<a href="#" data-t="'+it[1]+'" data-v="'+(it[2]||'')+'" onclick="go(\''+it[1]+'\',\''+(it[2]||'')+'\');return false">'+it[0]+'</a>').join('')+'</div></div>').join(''); }
+function sdBuild(){ $('nav').innerHTML=SD.map((G,gi)=>'<div class="nv" data-g="'+gi+'"><button class="ng" onclick="ngToggle('+gi+',event)">'+G.i+' '+G.g+' <small>▾</small></button><div class="nd">'+G.items.map(it=>'<a href="#" data-t="'+it[1]+'" data-v="'+(it[2]||'')+'" onclick="go(\''+it[1]+'\',\''+(it[2]||'')+'\');return false">'+it[0]+'</a>').join('')+'</div></div>').join(''); }
+function ngToggle(gi,e){ e.stopPropagation(); const el=document.querySelector('#nav .nv[data-g="'+gi+'"]'), was=el.classList.contains('open'); sdClose(); if(!was) el.classList.add('open'); }
 function go(t,v){ showTab(t); if(t==='sales'&&v) slView(v); }
-function sdSync(t,v){ if(v==null) v=(t==='sales'&&typeof slV!=='undefined')?slV:''; let lab='';
-  document.querySelectorAll('#sdMenu a').forEach(a=>{ const on=a.dataset.t===t&&(a.dataset.v||'')===v; a.classList.toggle('on',on); if(on) lab=a.parentNode.parentNode.querySelector('.sd-gh span').textContent.replace(/^\S+\s/,'')+' › '+a.textContent; });
-  const T=document.querySelector('.hdr .ttl'); if(T&&lab) T.textContent=lab.replace(/^(\w)(\w*)/,(m,a,b)=>a+b.toLowerCase()); }
-function sdToggle(){ $('side').classList.toggle('open'); $('sdShade').classList.toggle('open'); }
-function sdClose(){ $('side').classList.remove('open'); $('sdShade').classList.remove('open'); }
+function sdSync(t,v){ if(v==null) v=(t==='sales'&&typeof slV!=='undefined')?slV:''; document.querySelectorAll('#nav .nd a').forEach(a=>a.classList.toggle('on',a.dataset.t===t&&(a.dataset.v||'')===v)); document.querySelectorAll('#nav .nv').forEach(n=>n.querySelector('.ng').classList.toggle('on',!!n.querySelector('.nd a.on'))); }
+function sdToggle(){}
+function sdClose(){ document.querySelectorAll('#nav .nv.open').forEach(n=>n.classList.remove('open')); }
+document.addEventListener('click',sdClose);
 /* ===== edit helpers for purchases / stock / machines ===== */
 function slEdit(id){ const s=DB.sales.find(x=>x.id===id); if(!s) return; window.slEditId=id; $('sl_cust').value=s.cid; $('sl_date').value=s.date; $('sl_item').value=s.item; $('sl_qty').value=s.qty; $('sl_amt').value=s.amount; $('sl_inv').value=s.inv||''; $('sl_ref').value=s.ref||'Consumable'; $('sl_refn').value=s.refNote||''; $('sl_refn').style.display=$('sl_ref').value==='Others'?'':'none'; $('sl_addbtn').textContent='✔ Update'; $('sl_cust').scrollIntoView({behavior:'smooth',block:'center'}); }
 function stEdit(id){ const s=DB.stock.find(x=>x.id===id); if(!s) return; window.stEditId=id; $('st_item').value=s.item; $('st_qty').value=s.qty; $('st_min').value=s.min; $('st_cost').value=s.cost; $('st_price').value=s.price; $('st_item').scrollIntoView({behavior:'smooth',block:'center'}); toast('Editing — change the fields and click Add / update.'); }
@@ -1997,10 +1974,10 @@ document.addEventListener('click',e=>{ if(!e.target.closest('.bellwrap')) closeB
     try{ const r=await sb.from('app_state').upsert({owner:uid,data:DB,updated_at:new Date().toISOString()}).select('updated_at').single(); if(r.error) throw r.error; localStorage.setItem(TS,r.data.updated_at); localStorage.removeItem(DIRTY); pill('☁ Synced',true,'Log out'); }
     catch(e){ pill('⚠ Sync failed: '+(e.message||e),true,'Log out'); } busy=false; }
   function applyRole(){ const r=ME?ME.role:null, allow=r==='sales'?['customers','sales','inv']:null;
-    document.querySelectorAll('#sdMenu a').forEach(b=>{ const t=b.dataset.t; let show=true; if(t==='admin') show=(r==='admin'||r==='manager'); else if(allow) show=allow.includes(t); b.style.display=show?'':'none'; }); document.querySelectorAll('#sdMenu .sd-g').forEach(gp=>{ gp.style.display=[...gp.querySelectorAll('a')].some(a=>a.style.display!=='none')?'':'none'; });
+    document.querySelectorAll('#nav .nd a').forEach(b=>{ const t=b.dataset.t; let show=true; if(t==='admin') show=(r==='admin'||r==='manager'); else if(allow) show=allow.includes(t); b.style.display=show?'':'none'; }); document.querySelectorAll('#nav .nv').forEach(gp=>{ gp.style.display=[...gp.querySelectorAll('a')].some(a=>a.style.display!=='none')?'':'none'; });
     let chip=g('userChip'); if(!chip){ chip=document.createElement('div'); chip.id='userChip'; chip.style.cssText='display:flex;align-items:center;gap:8px;margin-left:10px'; chip.innerHTML='<div style="text-align:right;line-height:1.15"><div id="uName" style="color:#fff;font-weight:600;font-size:.82rem"></div><div id="uRole" style="color:#f2a541;font-size:.68rem;text-transform:uppercase;letter-spacing:.6px"></div></div><button onclick="cloudOut()" style="background:#fff;border:0;border-radius:8px;padding:7px 12px;font-weight:700;cursor:pointer">⎋ Logout</button>'; document.querySelector('.hdr .right').appendChild(chip); }
     chip.style.display=ME?'flex':'none'; if(ME){ g('uName').textContent=ME.name; g('uRole').textContent=ROLE[ME.role]; }
-    const cur=document.querySelector('#sdMenu a.on'); if(cur&&cur.style.display==='none') showTab('customers'); }
+    const cur=document.querySelector('#nav .nd a.on'); if(cur&&cur.style.display==='none') showTab('customers'); }
   async function blockWith(text){ g('cloudBox').style.display='flex'; msg(text,false); uid=null; ME=null; applyRole(); try{ await sb.auth.signOut(); }catch(e){} pill('☁ Signed out'); }
   async function onIn(user){ g('cloudBox').style.display='none'; pill('☁ Checking account…');
     try{ const prev=localStorage.getItem(UIDK); if(prev&&prev!==user.id){ clearLocal(); localStorage.setItem(UIDK,user.id); location.reload(); return; }
