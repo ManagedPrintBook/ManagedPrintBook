@@ -239,6 +239,7 @@ table.cptab td{padding:6px 6px;white-space:nowrap}table.cptab td .zin{padding:7p
   <button data-t="cal" onclick="showTab('cal')">Calendar</button>
   <button data-t="profit" onclick="showTab('profit')">Profitability</button>
   <button data-t="sales" onclick="showTab('sales')">Sales</button>
+  <button data-t="admin" onclick="showTab('admin')" style="display:none">Admin</button>
 </div>
 <div id="backupBar" class="bkbar" style="display:none"></div>
 <div class="page">
@@ -371,6 +372,8 @@ table.cptab td{padding:6px 6px;white-space:nowrap}table.cptab td .zin{padding:7p
   <div class="row-end"><button class="btn" onclick="msAdd()">+ Add machine sale</button></div></div></div>
   <div class="card" style="margin-top:14px"><div class="tw" id="msTable"></div></div></div>
 </section>
+
+<section id="v-admin" style="display:none"><div class="sec" style="margin-top:0"><h2>Admin — users &amp; roles</h2><button class="btn ghost sm" onclick="renderAdmin()" style="margin-left:auto">↻ Refresh</button></div><div class="card"><div class="tw" id="admUsers"></div></div><div id="admView" style="margin-top:14px"></div></section>
 
 <section id="v-profit" style="display:none">
   <div class="card pad"><div class="filters">
@@ -715,9 +718,10 @@ const expCust=new Set(), expDept=new Set(), expMch=new Set(); let searchQ='';
 const ymNow=()=>todayISO().slice(0,7);
 function showTab(t){
   document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
-  ['customers','run','dash','pay','inv','cal','profit','sales'].forEach(x=>{ $('v-'+x).style.display=x===t?'':'none'; });
-  ({customers:renderCustomers,run:renderRun,dash:renderDash,pay:renderPay,inv:renderInvoices,cal:renderCal,profit:renderProfit,sales:renderSales})[t]();
+  ['customers','run','dash','pay','inv','cal','profit','sales','admin'].forEach(x=>{ $('v-'+x).style.display=x===t?'':'none'; });
+  ({customers:renderCustomers,run:renderRun,dash:renderDash,pay:renderPay,inv:renderInvoices,cal:renderCal,profit:renderProfit,sales:renderSales,admin:renderAdmin})[t]();
 }
+function renderAdmin(){ if(window.cloudAdmin) window.cloudAdmin(); }
 function renderAll(){ renderCustomers(); renderDetail(); renderRun(); renderDash(); renderPay(); renderInvoices(); if($('v-cal').style.display!=='none') renderCal(); if($('v-profit').style.display!=='none') renderProfit(); if($('v-sales').style.display!=='none') renderSales(); updateNav(); }
 function fillCustSelects(){
   const opt=(sel,all)=>{ const cur=sel.value; sel.innerHTML=(all?'<option value="all">All customers</option>':'')+DB.customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join(''); if([...sel.options].some(o=>o.value===cur)) sel.value=cur; };
@@ -1918,8 +1922,9 @@ document.addEventListener('click',e=>{ if(!e.target.closest('.bellwrap')) closeB
     <h2 id="cl_title">Sign in to Managed Print Contracts &amp; Billing</h2>
     <div class="cl-sub" id="cl_sub">Use your email and password to open your data.</div>
     <div class="cl-tabs"><button id="clt_in" class="on" onclick="cloudTab('in')">Sign in</button><button id="clt_up" onclick="cloudTab('up')">Create account</button></div>
+    <div id="cl_namewrap" style="display:none"><label for="cl_name">User name</label><input id="cl_name" placeholder="Name shown when you sign in" autocomplete="name"></div>
     <label for="cl_email">Email</label><input id="cl_email" type="email" placeholder="you@company.com" autocomplete="username">
-    <label for="cl_pass">Password</label><input id="cl_pass" type="password" placeholder="At least 6 characters" autocomplete="current-password" onkeydown="if(event.key==='Enter')cloudAuth(cloudMode)">
+    <label for="cl_pass">Password <a href="#" id="cl_eye" onclick="cloudShow();return false" style="float:right;font-weight:600;color:#2f6fed;text-decoration:none">Show</a></label><input id="cl_pass" type="password" placeholder="At least 6 characters" autocomplete="current-password" onkeydown="if(event.key==='Enter')cloudAuth(cloudMode)">
     <div id="cl_msg" style="min-height:18px;font-size:.82rem;color:#dc2626;margin:-2px 0 10px"></div>
     <button class="cl-go" id="cl_go" onclick="cloudAuth(cloudMode)">Sign in</button>
     <div class="cl-links"><a href="#" onclick="cloudAuth('reset');return false">Forgot password?</a><a href="#" onclick="cloudOffline();return false">Work offline</a></div>
@@ -1928,36 +1933,68 @@ document.addEventListener('click',e=>{ if(!e.target.closest('.bellwrap')) closeB
 <div id="cloudPill" style="position:fixed;left:10px;bottom:10px;z-index:9998;background:#fff;border:1px solid #cfd4dc;border-radius:20px;padding:4px 12px;font:12px system-ui,Arial;color:#445;box-shadow:0 2px 8px rgba(0,0,0,.1)"><span id="cloudTxt">☁ …</span> <a href="#" id="cloudOut" onclick="cloudOut();return false" style="display:none;margin-left:8px">Sign out</a></div>
 <script>
 (function(){
-  const SB_URL='https://zaogpwfobqvayeejfvxc.supabase.co', SB_KEY='sb_publishable_NWe7FFqt7_C0qOOZoqvsFQ_tH9qBCty', TS='plc_cloud_ts', DIRTY='plc_dirty';
-  let sb=null, uid=null, timer=null, busy=false; const g=id=>document.getElementById(id);
-  const pill=(t,out)=>{ g('cloudTxt').textContent=t; g('cloudOut').style.display=out?'':'none'; };
-  const msg=t=>{ g('cl_msg').textContent=t||''; };
+  const SB_URL='https://zaogpwfobqvayeejfvxc.supabase.co', SB_KEY='sb_publishable_NWe7FFqt7_C0qOOZoqvsFQ_tH9qBCty', TS='plc_cloud_ts', DIRTY='plc_dirty', UIDK='plc_uid';
+  const ROLE={admin:'Admin',manager:'Manager',sales:'Sales Executive'};
+  let sb=null, uid=null, timer=null, busy=false, ME=null; const g=id=>document.getElementById(id);
+  const pill=(t,out,lbl)=>{ g('cloudTxt').textContent=t; const o=g('cloudOut'); o.style.display=out?'':'none'; o.textContent=lbl||'Sign out'; };
+  const msg=(t,ok)=>{ const m=g('cl_msg'); m.style.color=ok?'#0d9260':'#dc2626'; m.textContent=t||''; };
   const showLogin=()=>{ g('cloudBox').style.display='flex'; pill('☁ Signed out'); };
+  const clearLocal=()=>{ [KEY,TS,DIRTY,UIDK].forEach(k=>localStorage.removeItem(k)); };
+  try{ const e=localStorage.getItem('plc_email'); if(e) g('cl_email').value=e; }catch(e){}
   window.syncQueue=function(){ try{ localStorage.setItem(DIRTY,'1'); }catch(e){} if(!uid) return; pill('☁ Saving…',true); clearTimeout(timer); timer=setTimeout(push,2500); };
   async function push(){ if(!uid) return; if(busy){ timer=setTimeout(push,1500); return; } busy=true;
-    try{ const r=await sb.from('app_state').upsert({owner:uid,data:DB,updated_at:new Date().toISOString()}).select('updated_at').single(); if(r.error) throw r.error; localStorage.setItem(TS,r.data.updated_at); localStorage.removeItem(DIRTY); pill('☁ Synced',true); }
-    catch(e){ pill('⚠ Sync failed: '+(e.message||e),true); } busy=false; }
-  async function onIn(user){ uid=user.id; g('cloudBox').style.display='none'; pill('☁ Syncing…',true);
-    try{ const r=await sb.from('app_state').select('data,updated_at').eq('owner',uid).maybeSingle(); if(r.error) throw r.error; const row=r.data;
+    try{ const r=await sb.from('app_state').upsert({owner:uid,data:DB,updated_at:new Date().toISOString()}).select('updated_at').single(); if(r.error) throw r.error; localStorage.setItem(TS,r.data.updated_at); localStorage.removeItem(DIRTY); pill('☁ Synced',true,'Log out'); }
+    catch(e){ pill('⚠ Sync failed: '+(e.message||e),true,'Log out'); } busy=false; }
+  function applyRole(){ const r=ME?ME.role:null, allow=r==='sales'?['customers','sales','inv']:null;
+    document.querySelectorAll('#nav button').forEach(b=>{ const t=b.dataset.t; let show=true; if(t==='admin') show=(r==='admin'||r==='manager'); else if(allow) show=allow.includes(t); b.style.display=show?'':'none'; });
+    let chip=g('userChip'); if(!chip){ chip=document.createElement('div'); chip.id='userChip'; chip.style.cssText='display:flex;align-items:center;gap:8px;margin-left:10px'; chip.innerHTML='<div style="text-align:right;line-height:1.15"><div id="uName" style="color:#fff;font-weight:600;font-size:.82rem"></div><div id="uRole" style="color:#f2a541;font-size:.68rem;text-transform:uppercase;letter-spacing:.6px"></div></div><button onclick="cloudOut()" style="background:#fff;border:0;border-radius:8px;padding:7px 12px;font-weight:700;cursor:pointer">⎋ Logout</button>'; document.querySelector('.hdr .right').appendChild(chip); }
+    chip.style.display=ME?'flex':'none'; if(ME){ g('uName').textContent=ME.name; g('uRole').textContent=ROLE[ME.role]; }
+    const cur=document.querySelector('#nav button.on'); if(cur&&cur.style.display==='none') showTab('customers'); }
+  async function blockWith(text){ g('cloudBox').style.display='flex'; msg(text,false); uid=null; ME=null; applyRole(); try{ await sb.auth.signOut(); }catch(e){} pill('☁ Signed out'); }
+  async function onIn(user){ g('cloudBox').style.display='none'; pill('☁ Checking account…');
+    try{ const prev=localStorage.getItem(UIDK); if(prev&&prev!==user.id){ clearLocal(); localStorage.setItem(UIDK,user.id); location.reload(); return; }
+      const pr=await sb.from('profiles').select('*').eq('id',user.id).maybeSingle();
+      if(pr.error||!pr.data){ await blockWith('Setup incomplete: run the updated SQL (supabase/schema.sql) in Supabase. '+(pr.error?pr.error.message:'')); return; }
+      if(!pr.data.active){ await blockWith('Account created. It is waiting for Admin approval — please try again after you are approved.'); return; }
+      ME={id:user.id,email:user.email,name:pr.data.display_name||user.email.split('@')[0],role:pr.data.role}; uid=user.id; localStorage.setItem(UIDK,uid); applyRole(); pill('☁ Syncing…',true,'Log out');
+      const r=await sb.from('app_state').select('data,updated_at').eq('owner',uid).maybeSingle(); if(r.error) throw r.error; const row=r.data;
       const lts=localStorage.getItem(TS), dirty=!!localStorage.getItem(DIRTY), hasLocal=(DB.customers||[]).length>0||(DB.sales||[]).length>0;
       if(!row){ await push(); return; }
-      if(row.updated_at===lts){ if(dirty) await push(); else pill('☁ Synced',true); return; }
+      if(row.updated_at===lts){ if(dirty) await push(); else pill('☁ Synced',true,'Log out'); return; }
       const cloudHas=row.data&&Object.keys(row.data).length>0; let useCloud=cloudHas;
       if(cloudHas&&(dirty||(!lts&&hasLocal))) useCloud=confirm('Cloud data was found.\n\nOK = load the cloud data on this device (replaces what is here).\nCancel = keep this device\'s data and overwrite the cloud.');
       if(useCloud){ localStorage.setItem(KEY,JSON.stringify(row.data)); localStorage.setItem(TS,row.updated_at); localStorage.removeItem(DIRTY); location.reload(); } else await push();
-    }catch(e){ pill('⚠ '+(e.message||e),true); } }
-  window.cloudAuth=async function(mode){ if(!sb){ msg('Cloud library not loaded — check your internet.'); return; } const email=g('cl_email').value.trim(), password=g('cl_pass').value; msg('');
-    if(!email){ msg('Enter your email.'); return; }
-    try{ if(mode==='reset'){ const r=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin}); if(r.error) throw r.error; msg('Password reset email sent.'); g('cl_msg').style.color='#2a7'; return; }
-      if(password.length<6){ msg('Password must be at least 6 characters.'); return; }
-      if(mode==='up'){ const r=await sb.auth.signUp({email,password}); if(r.error) throw r.error; if(r.data.session) await onIn(r.data.user); else { g('cl_msg').style.color='#2a7'; msg('Account created. Check your email to confirm, then sign in.'); } }
-      else { const r=await sb.auth.signInWithPassword({email,password}); if(r.error) throw r.error; await onIn(r.data.user); }
-    }catch(e){ g('cl_msg').style.color='#c0392b'; msg(e.message||String(e)); } };
+    }catch(e){ pill('⚠ '+(e.message||e),true,'Log out'); } }
   window.cloudMode='in';
-  window.cloudTab=function(m){ window.cloudMode=m; g('clt_in').classList.toggle('on',m==='in'); g('clt_up').classList.toggle('on',m==='up'); g('cl_go').textContent=m==='in'?'Sign in':'Create account'; g('cl_title').textContent=m==='in'?'Sign in to Managed Print Contracts & Billing':'Create your account'; g('cl_sub').textContent=m==='in'?'Use your email and password to open your data.':'Choose an email and a password of at least 6 characters.'; g('cl_pass').autocomplete=m==='in'?'current-password':'new-password'; msg(''); };
+  window.cloudTab=function(m){ window.cloudMode=m; g('clt_in').classList.toggle('on',m==='in'); g('clt_up').classList.toggle('on',m==='up'); g('cl_go').textContent=m==='in'?'Sign in':'Create account'; g('cl_title').textContent=m==='in'?'Sign in to Managed Print Contracts & Billing':'Create your account'; g('cl_sub').textContent=m==='in'?'Use your email and password to open your data.':'Enter your name, email and a password (min 6 characters). The Admin must approve new accounts.'; g('cl_namewrap').style.display=m==='up'?'':'none'; g('cl_pass').autocomplete=m==='in'?'current-password':'new-password'; msg(''); };
+  window.cloudShow=function(){ const p=g('cl_pass'); p.type=p.type==='password'?'text':'password'; g('cl_eye').textContent=p.type==='password'?'Show':'Hide'; };
+  window.cloudAuth=async function(mode){ if(!sb){ msg('Cloud library not loaded — check your internet.'); return; } const email=g('cl_email').value.trim(), password=g('cl_pass').value, name=g('cl_name').value.trim(); msg('');
+    if(!email){ msg('Enter your email.'); return; }
+    try{ if(mode==='reset'){ const r=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin}); if(r.error) throw r.error; msg('Password reset email sent.',true); return; }
+      if(password.length<6){ msg('Password must be at least 6 characters.'); return; }
+      if(mode==='up'){ if(!name){ msg('Enter your user name.'); return; } const r=await sb.auth.signUp({email,password,options:{data:{display_name:name}}}); if(r.error) throw r.error; if(r.data.session) await onIn(r.data.user); else msg('Account created. Check your email to confirm it, then sign in. The Admin must also approve it.',true); }
+      else { const r=await sb.auth.signInWithPassword({email,password}); if(r.error) throw r.error; localStorage.setItem('plc_email',email); await onIn(r.data.user); }
+    }catch(e){ msg(e.message||String(e)); } };
+  window.cloudOut=async function(){ if(!uid){ showLogin(); return; } clearTimeout(timer); if(localStorage.getItem(DIRTY)) await push();
+    if(localStorage.getItem(DIRTY)&&!confirm('Some changes could not be saved to the cloud. Logging out will discard them on this device. Log out anyway?')) return;
+    try{ await sb.auth.signOut(); }catch(e){} clearLocal(); location.reload(); };
+  window.cloudOffline=function(){ g('cloudBox').style.display='none'; uid=null; ME=null; applyRole(); pill('⚠ Offline — not syncing',true,'Sign in'); };
+  /* ---- Admin tab ---- */
+  window.cloudAdmin=async function(){ const el=g('admUsers'); if(!sb||!ME){ el.innerHTML='<div class="empty">Sign in as Admin or Manager to see users.</div>'; return; } el.innerHTML='<div class="empty">Loading…</div>';
+    const r=await sb.from('profiles').select('*').order('created_at'); if(r.error){ el.innerHTML='<div class="empty">'+esc(r.error.message)+'</div>'; return; } const isA=ME.role==='admin';
+    el.innerHTML='<table><thead><tr><th>User name</th><th>Email</th><th>Role</th><th>Status</th><th>Joined</th><th></th></tr></thead><tbody>'+r.data.map(u=>{ const me=u.id===ME.id, ed=isA&&!me;
+      return '<tr><td><b>'+esc(u.display_name||'')+'</b>'+(me?' <small>(you)</small>':'')+'</td><td>'+esc(u.email||'')+'</td><td>'+(ed?'<select onchange="cloudSetUser(\''+u.id+'\',{role:this.value})" style="width:auto">'+['admin','manager','sales'].map(k=>'<option value="'+k+'"'+(u.role===k?' selected':'')+'>'+ROLE[k]+'</option>').join('')+'</select>':ROLE[u.role])+'</td><td>'+(ed?'<select onchange="cloudSetUser(\''+u.id+'\',{active:this.value===\'1\'})" style="width:auto"><option value="1"'+(u.active?' selected':'')+'>Active</option><option value="0"'+(u.active?'':' selected')+'>Pending / blocked</option></select>':badge(u.active?'good':'warn',u.active?'Active':'Pending'))+'</td><td>'+fmtDMY((u.created_at||'').slice(0,10))+'</td><td>'+(me?'':'<button class="btn sm ghost" onclick="cloudViewUser(\''+u.id+'\')">View data</button>')+'</td></tr>'; }).join('')+'</tbody></table>'+(isA?'<div class="hint" style="padding:8px 14px">New accounts stay <b>Pending</b> until you set them to Active. Sales Executives see only Customers, Invoices and Sales; Managers can view every user\'s data (read-only).</div>':'<div class="hint" style="padding:8px 14px">Only the Admin can approve accounts or change roles.</div>'); };
+  window.cloudSetUser=async function(id,patch){ const r=await sb.from('profiles').update(patch).eq('id',id).select(); if(r.error||!r.data.length){ toast(r.error?r.error.message:'Not allowed.',true); } else toast('User updated.'); cloudAdmin(); };
+  window.cloudViewUser=async function(id){ const box=g('admView'); box.innerHTML='<div class="empty">Loading…</div>';
+    const p=await sb.from('profiles').select('display_name,role').eq('id',id).maybeSingle(), r=await sb.from('app_state').select('data,updated_at').eq('owner',id).maybeSingle();
+    if(r.error){ box.innerHTML='<div class="empty">'+esc(r.error.message)+'</div>'; return; } if(!r.data){ box.innerHTML='<div class="empty">This user has no saved data yet.</div>'; return; }
+    const d=r.data.data||{}, C=d.customers||[], S=d.sales||[], Q=d.quotes||[], nm=c=>(C.find(x=>x.id===c)||{name:'(deleted)'}).name, y=addDays(todayISO(),-365), sum=S.filter(s=>s.date>=y).reduce((a,s)=>a+(+s.amount||0),0);
+    const k=(l,v)=>'<div class="card kpi"><span>'+l+'</span><b>'+v+'</b></div>', tb=(h,rows)=>'<div class="card" style="margin-top:12px"><div class="tw"><table><thead><tr>'+h.map(x=>'<th>'+x+'</th>').join('')+'</tr></thead><tbody>'+(rows.length?rows.join(''):'<tr><td colspan="'+h.length+'" class="empty">None</td></tr>')+'</tbody></table></div></div>';
+    box.innerHTML='<div class="sec"><h2>'+esc((p.data||{}).display_name||'User')+' — read-only view</h2><small style="margin-left:auto">Last synced '+esc((r.data.updated_at||'').slice(0,16).replace('T',' '))+'</small></div><div class="kpis">'+k('Customers',C.length)+k('Sales — 12 months','AED '+fmtM(sum))+k('Open quotes',Q.filter(q=>['Draft','Sent','Open'].includes(q.status)).length)+k('Sale invoices',new Set(S.filter(s=>s.inv&&!/^Q-/.test(s.inv)).map(s=>s.inv)).size)+'</div>'
+     +tb(['Customer','Plan','Last purchase'],C.slice(0,50).map(c=>{ const l=S.filter(s=>s.cid===c.id).sort((a,b)=>b.date.localeCompare(a.date))[0]; return '<tr><td>'+esc(c.name)+'</td><td>'+esc((c.plan&&c.plan.cycle)||'—')+'</td><td>'+(l?fmtDMY(l.date):'—')+'</td></tr>'; }))
+     +tb(['Date','Customer','Item','Amount','Invoice','Ref'],S.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,25).map(s=>'<tr><td>'+fmtDMY(s.date)+'</td><td>'+esc(nm(s.cid))+'</td><td>'+esc(s.item)+'</td><td class="n">'+fmtM(s.amount)+'</td><td>'+esc(s.inv||'—')+'</td><td>'+esc(s.ref||'Consumable')+'</td></tr>'))
+     +tb(['Quote#','Customer','Status','Total'],Q.slice().reverse().slice(0,25).map(q=>'<tr><td>'+esc(q.no)+'</td><td>'+esc(nm(q.cid))+'</td><td>'+esc(q.status)+'</td><td class="n">'+fmtM(qTot(q).total)+'</td></tr>')); box.scrollIntoView({behavior:'smooth'}); };
   try{ const lg=document.querySelector('.logo-box img'); if(lg&&lg.src) document.querySelectorAll('#cloudBox .cl-img').forEach(i=>i.src=lg.src); }catch(e){}
-  window.cloudOut=async function(){ if(sb) await sb.auth.signOut(); uid=null; showLogin(); };
-  window.cloudOffline=function(){ g('cloudBox').style.display='none'; uid=null; pill('⚠ Offline — not syncing'); };
   (async function(){ if(!window.supabase){ showLogin(); msg('Cloud library could not load (offline?). You can work offline.'); return; }
     sb=window.supabase.createClient(SB_URL,SB_KEY); const s=(await sb.auth.getSession()).data.session; if(s) await onIn(s.user); else showLogin(); })();
 })();
