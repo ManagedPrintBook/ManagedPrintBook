@@ -1,0 +1,6 @@
+.env
+.env.*
+*.csv
+*.bak
+node_modules/
+.vercel/
