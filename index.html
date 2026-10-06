@@ -434,7 +434,7 @@ function normalizeData(){
 }
 normalizeData();
 function paintBadge(ok){ const e=$('storageBadge'); if(!e) return; e.textContent=ok?'💾 Saved in this browser':'⚠ Storage unavailable — use Backup'; e.className='pill'+(ok?'':' bad'); }
-function save(){ let ok=false; if(storageOK){ try{ localStorage.setItem(KEY,JSON.stringify(DB)); ok=true; }catch(e){ storageOK=false; } } paintBadge(ok); return ok; }
+function save(){ let ok=false; if(storageOK){ try{ localStorage.setItem(KEY,JSON.stringify(DB)); ok=true; }catch(e){ storageOK=false; } } try{ syncQueue(); }catch(e){} paintBadge(ok); return ok; }
 function saveNow(){ toast(save()?'Saved.':'Browser storage is unavailable — use Backup to keep your data.',!storageOK); }
 function backupJSON(auto){
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(DB,null,2)],{type:'application/json'}));
@@ -1872,4 +1872,50 @@ function slBellSec(S,sec,empty,rl){ const E=slExtra(); return sec('🛒 Sales �
 showTab('customers'); renderBell(); updateNav(); bkCheck(true); setInterval(()=>bkCheck(),1800000);
 document.addEventListener('click',e=>{ if(!e.target.closest('.bellwrap')) closeBell(); });
 
-</script></body></html>
+</script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<div id="cloudBox" style="position:fixed;inset:0;z-index:10000;background:#f4f6fa;display:none;align-items:center;justify-content:center;font-family:system-ui,Arial">
+  <div style="background:#fff;border:1px solid #dfe3ea;border-radius:12px;padding:26px;width:340px;box-shadow:0 10px 30px rgba(0,0,0,.08)">
+    <h2 style="margin:0 0 4px;font-size:1.15rem">Managed Print Contracts &amp; Billing</h2>
+    <div style="color:#667;font-size:.85rem;margin-bottom:14px">Sign in to sync your data across devices</div>
+    <input id="cl_email" type="email" placeholder="Email" style="width:100%;padding:9px;margin-bottom:8px;border:1px solid #cfd4dc;border-radius:6px;box-sizing:border-box">
+    <input id="cl_pass" type="password" placeholder="Password (min 6 characters)" style="width:100%;padding:9px;margin-bottom:10px;border:1px solid #cfd4dc;border-radius:6px;box-sizing:border-box" onkeydown="if(event.key==='Enter')cloudAuth('in')">
+    <div id="cl_msg" style="min-height:18px;font-size:.82rem;color:#c0392b;margin-bottom:8px"></div>
+    <div style="display:flex;gap:8px"><button onclick="cloudAuth('in')" style="flex:1;padding:9px;background:#2563eb;color:#fff;border:0;border-radius:6px;cursor:pointer">Sign in</button><button onclick="cloudAuth('up')" style="flex:1;padding:9px;background:#fff;border:1px solid #2563eb;color:#2563eb;border-radius:6px;cursor:pointer">Create account</button></div>
+    <div style="margin-top:12px;font-size:.8rem;display:flex;justify-content:space-between"><a href="#" onclick="cloudAuth('reset');return false">Forgot password?</a><a href="#" onclick="cloudOffline();return false">Work offline</a></div>
+  </div>
+</div>
+<div id="cloudPill" style="position:fixed;left:10px;bottom:10px;z-index:9998;background:#fff;border:1px solid #cfd4dc;border-radius:20px;padding:4px 12px;font:12px system-ui,Arial;color:#445;box-shadow:0 2px 8px rgba(0,0,0,.1)"><span id="cloudTxt">☁ …</span> <a href="#" id="cloudOut" onclick="cloudOut();return false" style="display:none;margin-left:8px">Sign out</a></div>
+<script>
+(function(){
+  const SB_URL='https://zaogpwfobqvayeejfvxc.supabase.co', SB_KEY='sb_publishable_NWe7FFqt7_C0qOOZoqvsFQ_tH9qBCty', TS='plc_cloud_ts', DIRTY='plc_dirty';
+  let sb=null, uid=null, timer=null, busy=false; const g=id=>document.getElementById(id);
+  const pill=(t,out)=>{ g('cloudTxt').textContent=t; g('cloudOut').style.display=out?'':'none'; };
+  const msg=t=>{ g('cl_msg').textContent=t||''; };
+  const showLogin=()=>{ g('cloudBox').style.display='flex'; pill('☁ Signed out'); };
+  window.syncQueue=function(){ try{ localStorage.setItem(DIRTY,'1'); }catch(e){} if(!uid) return; pill('☁ Saving…',true); clearTimeout(timer); timer=setTimeout(push,2500); };
+  async function push(){ if(!uid) return; if(busy){ timer=setTimeout(push,1500); return; } busy=true;
+    try{ const r=await sb.from('app_state').upsert({owner:uid,data:DB,updated_at:new Date().toISOString()}).select('updated_at').single(); if(r.error) throw r.error; localStorage.setItem(TS,r.data.updated_at); localStorage.removeItem(DIRTY); pill('☁ Synced',true); }
+    catch(e){ pill('⚠ Sync failed: '+(e.message||e),true); } busy=false; }
+  async function onIn(user){ uid=user.id; g('cloudBox').style.display='none'; pill('☁ Syncing…',true);
+    try{ const r=await sb.from('app_state').select('data,updated_at').eq('owner',uid).maybeSingle(); if(r.error) throw r.error; const row=r.data;
+      const lts=localStorage.getItem(TS), dirty=!!localStorage.getItem(DIRTY), hasLocal=(DB.customers||[]).length>0||(DB.sales||[]).length>0;
+      if(!row){ await push(); return; }
+      if(row.updated_at===lts){ if(dirty) await push(); else pill('☁ Synced',true); return; }
+      const cloudHas=row.data&&Object.keys(row.data).length>0; let useCloud=cloudHas;
+      if(cloudHas&&(dirty||(!lts&&hasLocal))) useCloud=confirm('Cloud data was found.\n\nOK = load the cloud data on this device (replaces what is here).\nCancel = keep this device\'s data and overwrite the cloud.');
+      if(useCloud){ localStorage.setItem(KEY,JSON.stringify(row.data)); localStorage.setItem(TS,row.updated_at); localStorage.removeItem(DIRTY); location.reload(); } else await push();
+    }catch(e){ pill('⚠ '+(e.message||e),true); } }
+  window.cloudAuth=async function(mode){ if(!sb){ msg('Cloud library not loaded — check your internet.'); return; } const email=g('cl_email').value.trim(), password=g('cl_pass').value; msg('');
+    if(!email){ msg('Enter your email.'); return; }
+    try{ if(mode==='reset'){ const r=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin}); if(r.error) throw r.error; msg('Password reset email sent.'); g('cl_msg').style.color='#2a7'; return; }
+      if(password.length<6){ msg('Password must be at least 6 characters.'); return; }
+      if(mode==='up'){ const r=await sb.auth.signUp({email,password}); if(r.error) throw r.error; if(r.data.session) await onIn(r.data.user); else { g('cl_msg').style.color='#2a7'; msg('Account created. Check your email to confirm, then sign in.'); } }
+      else { const r=await sb.auth.signInWithPassword({email,password}); if(r.error) throw r.error; await onIn(r.data.user); }
+    }catch(e){ g('cl_msg').style.color='#c0392b'; msg(e.message||String(e)); } };
+  window.cloudOut=async function(){ if(sb) await sb.auth.signOut(); uid=null; showLogin(); };
+  window.cloudOffline=function(){ g('cloudBox').style.display='none'; uid=null; pill('⚠ Offline — not syncing'); };
+  (async function(){ if(!window.supabase){ showLogin(); msg('Cloud library could not load (offline?). You can work offline.'); return; }
+    sb=window.supabase.createClient(SB_URL,SB_KEY); const s=(await sb.auth.getSession()).data.session; if(s) await onIn(s.user); else showLogin(); })();
+})();
+</script>
+</body></html>
