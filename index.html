@@ -229,7 +229,7 @@ table.cptab td{padding:6px 6px;white-space:nowrap}table.cptab td .zin{padding:7p
 body{-webkit-user-select:text;user-select:text}
 button,.btn,.nav button,.nd a{-webkit-user-select:none;user-select:none}
 #slNav{display:none!important}
-.nav{overflow:visible!important;flex-wrap:wrap;position:relative;z-index:70}
+.nav{overflow:visible!important;flex-wrap:wrap;position:relative;z-index:40}
 .nv{position:relative}
 .nav .ng{font-size:.9rem}
 .nav .ng small{font-size:.65rem;opacity:.7;margin-left:3px}
@@ -304,7 +304,7 @@ button,.btn,.nav button,.nd a{-webkit-user-select:none;user-select:none}
 </section>
 
 <section id="v-inv" style="display:none">
-  <div class="sec" style="margin-top:0"><h2>Invoice History</h2><select id="inv_ref" onchange="renderInvoices()" style="width:auto;margin-left:auto"><option value="">All references</option><option>Lease</option><option>ORS</option><option>Consumable</option><option>Others</option></select></div>
+  <div class="sec" style="margin-top:0;flex-wrap:wrap;gap:8px"><h2>Invoice History</h2><span class="hint" id="invSum" style="margin:0 0 0 8px"></span><span style="margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap"><label style="font-size:.78rem">From</label><input type="date" id="inv_from" onchange="renderInvoices()" style="width:auto"><label style="font-size:.78rem">To</label><input type="date" id="inv_to" onchange="renderInvoices()" style="width:auto"><button class="btn ghost sm" onclick="invMonth();renderInvoices()">This month</button><select id="inv_ref" onchange="renderInvoices()" style="width:auto"><option value="">All references</option><option>Lease</option><option>ORS</option><option>Consumable</option><option>AMC</option><option>Others</option></select></span></div>
   <div class="card"><div class="tw" id="invTable"></div></div>
 </section>
 
@@ -325,7 +325,7 @@ button,.btn,.nav button,.nd a{-webkit-user-select:none;user-select:none}
     <div class="fg grow"><label>Item</label><input id="sl_item" placeholder="e.g. TK-5280 K x2"></div>
     <div class="fg"><label>Qty</label><input type="number" id="sl_qty" value="1" min="1" style="width:70px"></div>
     <div class="fg"><label>Amount (AED)</label><input type="number" id="sl_amt" step="0.01"></div>
-    <div class="fg"><label>Invoice # (auto)</label><input id="sl_inv" style="width:150px"></div><div class="fg"><label>Internal ref</label><select id="sl_ref" onchange="$('sl_refn').style.display=this.value==='Others'?'':'none'"><option>Consumable</option><option>ORS</option><option>Lease</option><option>Others</option></select></div><div class="fg"><input id="sl_refn" placeholder="Others — specify" style="display:none;width:150px"></div>
+    <div class="fg"><label>Invoice # (auto)</label><input id="sl_inv" style="width:150px"></div><div class="fg"><label>Internal ref</label><select id="sl_ref" onchange="$('sl_refn').style.display=this.value==='Others'?'':'none'"><option>Consumable</option><option>ORS</option><option>Lease</option><option>AMC</option><option>Others</option></select></div><div class="fg"><input id="sl_refn" placeholder="Others — specify" style="display:none;width:150px"></div>
     <div class="row-end"><button class="btn" id="sl_addbtn" onclick="slAdd()">+ Add</button></div></div></div>
   <div class="card pad" style="margin-top:14px"><div class="sec" style="margin:0 0 8px"><h2>Purchase plan &amp; follow-up</h2></div><div class="filters">
     <div class="fg grow"><label>Customer</label><select id="sl_pc" onchange="slLoadPlan()"></select></div>
@@ -388,7 +388,20 @@ button,.btn,.nav button,.nd a{-webkit-user-select:none;user-select:none}
   <div class="card" style="margin-top:14px"><div class="tw" id="msTable"></div></div></div>
 </section>
 
-<section id="v-admin" style="display:none"><div class="sec" style="margin-top:0"><h2>Admin — users &amp; roles</h2><button class="btn ghost sm" onclick="renderAdmin()" style="margin-left:auto">↻ Refresh</button></div><div class="card"><div class="tw" id="admUsers"></div></div><div id="admView" style="margin-top:14px"></div></section>
+<section id="v-reports" style="display:none">
+  <div id="rpHome"><div class="sec" style="margin-top:0;flex-wrap:wrap;gap:8px"><h2>Reports Center</h2><span class="badge blue" id="rpCount">0</span><span style="margin-left:auto;display:flex;gap:8px"><input id="rp_q" placeholder="Search reports" oninput="renderReports()" style="width:220px"><select id="rp_cat" onchange="renderReports()" style="width:auto"><option value="">All categories</option><option>Billing</option><option>Receivables</option><option>Sales</option><option>Items</option></select></span></div>
+    <div class="card"><div class="tw" id="rpList"></div></div></div>
+  <div id="rpView" style="display:none"><div class="sec" style="margin-top:0"><button class="btn ghost sm" onclick="rpBack()">← Reports Center</button><h2 id="rpTitle" style="margin-left:10px"></h2></div><div class="hint" id="rpDesc" style="margin:0 0 10px"></div>
+    <div class="card pad"><div class="filters">
+      <div id="rp_w_pre" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap"><div class="fg"><label>Period</label><select id="rp_pre" onchange="rpPreChg()"><option>This month</option><option>Last month</option><option>This quarter</option><option>This year</option><option>Last year</option><option>Custom</option></select></div><div class="fg"><label>From</label><input type="date" id="rp_from" onchange="rpCustom()"></div><div class="fg"><label>To</label><input type="date" id="rp_to" onchange="rpCustom()"></div></div>
+      <div class="fg" id="rp_w_by"><label>View by</label><select id="rp_by" onchange="rpRun()"><option>Month</option><option>Year</option><option>Date</option></select></div>
+      <div class="fg" id="rp_w_cust"><label>Customer</label><select id="rp_cust" onchange="rpRun()"></select></div>
+      <div class="fg" id="rp_w_cats"><label>Categories</label><div style="display:flex;gap:12px;flex-wrap:wrap;padding:8px 0;font-size:.86rem"><label style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="rp_c_Lease" checked onchange="rpRun()"> Lease</label><label style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="rp_c_ORS" checked onchange="rpRun()"> ORS</label><label style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="rp_c_Consumables" checked onchange="rpRun()"> Consumables</label><label style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="rp_c_AMC" checked onchange="rpRun()"> AMC</label><label style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="rp_c_Others" checked onchange="rpRun()"> Others</label></div></div>
+      <div class="row-end" style="display:flex;gap:8px"><button class="btn ghost" onclick="rpCsv()">⬇ Export CSV</button><button class="btn ghost" onclick="rpPrint()">🖨 Print</button></div></div></div>
+    <div id="rpOut"></div></div>
+</section>
+
+<section id="v-admin" style="display:none"><div class="sec" style="margin-top:0"><h2>Admin — users &amp; roles</h2><button class="btn ghost sm" onclick="renderAdmin()" style="margin-left:auto">↻ Refresh</button></div><div class="card"><div class="tw" id="admUsers"></div></div><div id="admSec" style="margin-top:14px"></div><div id="admView" style="margin-top:14px"></div></section>
 
 <section id="v-profit" style="display:none">
   <div class="card pad"><div class="filters">
@@ -681,6 +694,7 @@ function buildModals(){
   <div class="overlay" id="ledgerOverlay" data-save="saveLedger"><div class="modal">
     <h3 id="ledgerTitle">Record Payment</h3>
     <div id="ledgerHint" class="hint"></div>
+    ${S('l_cust','Customer',[])}
     ${S('l_type','Type',[['payment','Payment received'],['credit','Credit note'],['opening','Opening balance (debit)']])}
     <div class="grid2">${F('l_date','Date','date')}${F('l_amount','Amount (AED)','number','step="any"')}${S('l_method','Method',['Bank transfer','Cheque','Cash','Card','Other'])}${F('l_ref','Reference / Invoice no.')}</div>
     ${F('l_note','Note')}
@@ -712,14 +726,20 @@ function buildModals(){
   <div class="overlay" id="confirmOverlay" data-save="confirmEnter"><div class="modal" style="max-width:420px"><h3 id="confirmMsg">Are you sure?</h3>
     <div class="modal-actions"><button class="btn ghost" onclick="closeModal('confirmOverlay')">Cancel</button><button class="btn danger-solid" id="confirmYes">Yes</button></div></div></div>
 
+  <div class="overlay" id="iedOverlay"><div class="modal"><h3>Edit invoice</h3>
+    <div class="grid2"><div class="field"><label>Invoice #</label><input id="ied_no"></div><div class="field"><label>Invoice date</label><input type="date" id="ied_date"></div>
+    <div class="field"><label>Customer</label><select id="ied_cust"></select></div><div class="field"><label>Internal reference</label><select id="ied_ref"><option>Lease</option><option>ORS</option><option>Consumable</option><option>AMC</option><option>Others</option></select></div>
+    <div class="field"><label>If Others — specify</label><input id="ied_note"></div><div class="field"><label>Total (AED)</label><input type="number" step="0.01" id="ied_total"></div></div>
+    <div class="hint" id="ied_hint"></div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal('iedOverlay')">Cancel</button><button class="btn" onclick="iedSave()">Save changes</button></div></div></div>
+
   <div class="overlay" id="invOverlay"><div class="modal" style="max-width:920px;background:#eef0f4">
     <div class="noprint" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
       <button class="btn ghost" onclick="closeModal('invOverlay')">Close</button>
       <span class="hint" id="invNote" style="margin:0 auto 0 6px"></span>
-      <button class="btn ghost" id="bJson" onclick="exportInvoiceJSON()">{ } Data (JSON)</button>
+      <button class="btn" id="bJson" onclick="saveDoc()">💾 Save</button>
       <button class="btn ghost" onclick="sendWhatsApp()">WhatsApp</button>
       <button class="btn ghost" onclick="sendEmail()">✉ Email</button>
-      <button class="btn ghost" onclick="downloadPDF()">⬇ PDF</button>
       <button class="btn" onclick="printDoc()">🖨 Print</button>
     </div>
     <div id="invWarn" class="noprint"></div>
@@ -733,8 +753,8 @@ const expCust=new Set(), expDept=new Set(), expMch=new Set(); let searchQ='';
 const ymNow=()=>todayISO().slice(0,7);
 function showTab(t){
   document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
-  ['customers','run','dash','pay','inv','cal','profit','sales','admin'].forEach(x=>{ $('v-'+x).style.display=x===t?'':'none'; });
-  ({customers:renderCustomers,run:renderRun,dash:renderDash,pay:renderPay,inv:renderInvoices,cal:renderCal,profit:renderProfit,sales:renderSales,admin:renderAdmin})[t](); sdSync(t); sdClose();
+  ['customers','run','dash','pay','inv','cal','profit','sales','admin','reports'].forEach(x=>{ $('v-'+x).style.display=x===t?'':'none'; });
+  ({customers:renderCustomers,run:renderRun,dash:renderDash,pay:renderPay,inv:renderInvoices,cal:renderCal,profit:renderProfit,sales:renderSales,admin:renderAdmin,reports:renderReports})[t](); sdSync(t); sdClose();
 }
 function renderAdmin(){ if(window.cloudAdmin) window.cloudAdmin(); }
 function renderAll(){ renderCustomers(); renderDetail(); renderRun(); renderDash(); renderPay(); renderInvoices(); if($('v-cal').style.display!=='none') renderCal(); if($('v-profit').style.display!=='none') renderProfit(); if($('v-sales').style.display!=='none') renderSales(); updateNav(); }
@@ -1455,7 +1475,7 @@ function openLedger(type,cid,amount,ref){
   ledgerCid=cid||$('pay_cust').value; if(!ledgerCid){ toast('Add a customer first.',true); return; }
   $('l_type').value=type; $('l_date').value=todayISO(); $('l_amount').value=amount||''; $('l_ref').value=ref||''; $('l_note').value=''; $('l_method').value='Bank transfer';
   const c=custById(ledgerCid), a=acct(ledgerCid);
-  $('ledgerTitle').textContent='Ledger entry — '+c.name; $('ledgerHint').textContent='';
+  $('ledgerTitle').textContent='Record Payment / Ledger Entry'; $('l_cust').innerHTML=DB.customers.map(x=>'<option value="'+x.id+'">'+esc(x.name)+'</option>').join(''); $('l_cust').value=ledgerCid; const lh=()=>{ ledgerCid=$('l_cust').value; $('ledgerHint').textContent='Outstanding balance: AED '+fmtM(acct(ledgerCid).balance); }; $('l_cust').onchange=lh; lh();
   openModal('ledgerOverlay');
 }
 function saveLedger(){
@@ -1503,21 +1523,6 @@ function renderPay(){
   el.innerHTML=`<div class="kpis" style="margin-top:16px"><div class="card kpi"><span>Invoiced</span><b>AED ${fmtM(inv)}</b></div><div class="card kpi"><span>Received / credited</span><b>AED ${fmtM(rec)}</b></div><div class="card kpi"><span>Balance</span><b>AED ${fmtM(a.balance)}</b><small>${a.unapplied>0?'Includes advance of AED '+fmtM(a.unapplied):'Terms: '+esc(a.c.terms||'Due on Receipt')}</small></div><div class="card kpi"><span>Overdue</span><b style="color:${a.overdue>0?'var(--danger)':'inherit'}">AED ${fmtM(a.overdue)}</b><small>&nbsp;</small></div></div>
   <div class="sec"><h2>Aging</h2></div><div class="card"><table><thead><tr><th class="n">Not yet due</th><th class="n">1–30 days</th><th class="n">31–60 days</th><th class="n">61–90 days</th><th class="n">90+ days</th></tr></thead><tbody><tr><td class="n">${fmtM(ag.cur)}</td><td class="n">${fmtM(ag.d30)}</td><td class="n">${fmtM(ag.d60)}</td><td class="n">${fmtM(ag.d90)}</td><td class="n">${fmtM(ag.d90p)}</td></tr></tbody></table></div>
   <div class="sec"><h2>Ledger</h2></div><div class="card"><div class="tw">${a.docs.length?`<table><thead><tr><th>Date</th><th>Type</th><th>Reference</th><th class="n">Debit</th><th class="n">Credit</th><th class="n">Balance</th><th>Status</th><th></th></tr></thead><tbody>${a.docs.map(d=>`<tr><td>${fmtDMY(d.date)}</td><td>${d.type}</td><td>${esc(d.ref)}</td><td class="n">${d.debit?fmtM(d.debit):''}</td><td class="n">${d.credit?fmtM(d.credit):''}</td><td class="n"><b>${fmtM(d.bal)}</b></td><td>${d.debit?(d.open<=0?'<span class="badge good">Paid</span>':d.overdue?`<span class="badge bad">Overdue ${d.age}d · ${fmtM(d.open)}</span>`:`<span class="badge warn">Open ${fmtM(d.open)}</span>`):''}</td><td>${d.led?`<button class="btn sm danger" onclick="deleteLedger('${d.led.id}')">✕</button>`:d.debit&&d.open>0?`<button class="btn sm ghost" onclick="openLedger('payment','${cid}',${d.open},'${esc(d.ref)}')">Pay</button>`:''}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">No invoices or entries for this customer yet.</div>'}</div></div>`;
-}
-const REFS=['Lease','ORS','Consumable','Others'];
-function invSetRef(i,v){ DB.invoices[i].ref=v; save(); renderInvoices(); }
-function invSetSaleRef(no,v){ DB.sales.filter(x=>x.inv===no).forEach(x=>x.ref=v); save(); renderInvoices(); }
-function renderInvoices(){
-  const el=$('invTable'), flt=$('inv_ref').value, g={};
-  DB.sales.filter(x=>x.inv&&!/^Q-/.test(x.inv)).forEach(x=>{ const r=g[x.inv]=g[x.inv]||{kind:'S',no:x.inv,date:x.date,cid:x.cid,total:0,ref:x.ref||'Consumable',note:x.refNote||'',items:[]}; r.total+=+x.amount||0; r.items.push(x.item); });
-  let rows=DB.invoices.map((v,i)=>({kind:'L',v,i,no:v.no,date:v.date,ref:v.ref||'Lease'})).concat(Object.values(g));
-  if(flt) rows=rows.filter(r=>r.ref===flt);
-  rows.sort((a,b)=>(b.date||'').localeCompare(a.date||'')||String(b.no).localeCompare(String(a.no)));
-  if(!rows.length){ el.innerHTML='<div class="empty">No invoices'+(flt?' with reference '+flt:' yet. Generate one from Customers → Bill; it is saved here when you Print / Download it')+'.</div>'; return; }
-  const cache={}; const st=v=>{ if(!custById(v.cid)) return '<span class="badge gray">—</span>'; const a=cache[v.cid]||(cache[v.cid]=acct(v.cid)); const d=a.debits.find(x=>x.inv===v); return !d?'':d.open<=0?'<span class="badge good">Paid</span>':d.overdue?`<span class="badge bad">Overdue · ${fmtM(d.open)}</span>`:`<span class="badge warn">Open · ${fmtM(d.open)}</span>`; };
-  const sel=(cur,fn)=>`<select onchange="${fn}" style="width:auto;padding:2px 4px">${REFS.map(r=>`<option ${r===cur?'selected':''}>${r}</option>`).join('')}</select>`;
-  el.innerHTML=`<table><thead><tr><th>Invoice #</th><th>Date</th><th>Customer</th><th>Ref</th><th>Period / Items</th><th class="n">Total (AED)</th><th>Status</th><th></th></tr></thead><tbody>${rows.map(r=>{ if(r.kind==='L'){ const v=r.v,i=r.i; return `<tr><td><b>${esc(v.no)}</b></td><td>${fmtDMY(v.date)}</td><td>${esc(v.cname)}</td><td>${sel(r.ref,`invSetRef(${i},this.value)`)}</td><td>${v.from} → ${v.to}</td><td class="n">${fmtM(v.total)}</td><td>${st(v)}</td><td><div class="actions"><button class="btn sm ghost" onclick="viewInvoice(${i})">View / Reprint</button><button class="btn sm ghost" onclick="viewInvoice(${i});sendEmail()">✉</button><button class="btn sm ghost" onclick="viewInvoice(${i});sendWhatsApp()">WhatsApp</button></div></td></tr>`; }
-    return `<tr><td><b>${esc(r.no)}</b></td><td>${fmtDMY(r.date)}</td><td>${esc((custById(r.cid)||{name:'(deleted)'}).name)}</td><td>${sel(r.ref,`invSetSaleRef('${esc(r.no)}',this.value)`)}${r.ref==='Others'&&r.note?`<div class="hint" style="margin:0">${esc(r.note)}</div>`:''}</td><td>${esc(r.items[0]||'')}${r.items.length>1?` +${r.items.length-1} more`:''}</td><td class="n">${fmtM(r.total)}</td><td><span class="badge gray">Sale</span></td><td></td></tr>`; }).join('')}</tbody></table>`;
 }
 /* ================= billing ================= */
 function escF(c,iso){ const k=c.contract||{}; if(!(k.escPct>0)||!k.start) return 1; const y=Math.floor(daysBetween(k.start,iso)/365.25); return y>0?Math.pow(1+k.escPct/100,y):1; }
@@ -1632,6 +1637,7 @@ function showDoc(html,doc,warn){
 }
 function commitDoc(){ if(curDoc&&curDoc.pending){ DB.company.invSeq=(DB.company.invSeq||1)+1; DB.invoices.push(curDoc.pending); curDoc.inv=curDoc.pending; curDoc.pending=null; save(); renderInvoices(); $('invNote').textContent='Saved invoice '+curDoc.inv.no; } }
 function viewInvoice(i){ const v=DB.invoices[i]; if(v) showDoc(v.html,{kind:'invoice',inv:v,cid:v.cid},[]); }
+function saveDoc(){ if(!curDoc||curDoc.kind!=='invoice') return; if(curDoc.pending){ commitDoc(); toast('Invoice saved to Invoice History.'); } else toast('Already saved.'); }
 function printDoc(){ commitDoc(); const old=document.title; document.title=docFile(); const back=()=>{ document.title=old; window.removeEventListener('afterprint',back); }; window.addEventListener('afterprint',back); window.print(); setTimeout(()=>{ if(document.title!==old) document.title=old; },60000); }
 function docFile(){ return curDoc.kind==='invoice'?(curDoc.pending||curDoc.inv).no.replace(/[^\w-]+/g,'_'):'Statement_'+todayISO(); }
 async function downloadPDF(){
@@ -1850,7 +1856,7 @@ function qSave(status){ const cid=$('q_cust').value, lines=qRows.filter(l=>l.ite
   Object.assign(q,{no,cid,ref:$('q_ref').value.trim(),date:$('q_date').value||todayISO(),exp:$('q_exp').value,sales:$('q_sp').value.trim(),subject:$('q_sub').value.trim(),notes:$('q_notes').value,terms:$('q_terms').value,lines}); save(); qShow('list'); toast('Quote '+no+' saved.'); return q; }
 function qSaveSend(){ const q=qSave('Sent'); if(!q) return; const t=qTot(q); slSend(q.cid,'Dear '+cn(q.cid)+',\n\nPlease find our quotation '+q.no+(q.subject?' for '+q.subject:'')+' — total AED '+fmtM(t.total)+(q.exp?', valid until '+fmtDMY(q.exp):'')+'.\n\nBest regards,\n'+((DB.company||{}).name||''),'q:'+q.id); }
 function qInvoice(id){ const q=DB.quotes.find(x=>x.id===id); if(qStat(q)==='Invoiced'){ toast('Already invoiced ('+q.invNo+').',true); return; }
-  askConfirm('Convert '+q.no+' to invoice '+slNextInv()+'? Stock will be reduced.',()=>{ let ref=(prompt('Internal reference: Lease / ORS / Consumable / Others','Consumable')||'Consumable').trim(); ref=REFS.find(r=>r.toLowerCase()===ref.toLowerCase())||'Others'; const inv=slTakeInv(''); q.invNo=inv;
+  askConfirm('Convert '+q.no+' to invoice '+slNextInv()+'? Stock will be reduced.',()=>{ let ref=(prompt('Internal reference: Lease / ORS / Consumable / AMC / Others','Consumable')||'Consumable').trim(); ref=REFS.find(r=>r.toLowerCase()===ref.toLowerCase())||'Others'; const inv=slTakeInv(''); q.invNo=inv;
     q.lines.map(qLn).forEach(l=>{ DB.sales.push({id:uid(),cid:q.cid,date:todayISO(),item:l.item,qty:l.qty,amount:qAmt(l)*(1+l.tax/100),cost:l.qty*l.cost,inv,qno:q.no,ref}); const s=DB.stock.find(x=>x.item.toLowerCase()===l.item.toLowerCase()); if(s) s.qty-=l.qty; });
     q.status='Invoiced'; save(); renderSales(); renderBell(); toast('Invoice '+inv+' created — see Invoices tab.'); },'Yes, convert'); }
 function qMore(id,v){ if(!v) return; if(v==='Delete'){ askConfirm('Delete this quote?',()=>{ DB.quotes=DB.quotes.filter(x=>x.id!==id); save(); qRender(); }); return; } DB.quotes.find(x=>x.id===id).status=v; save(); qRender(); }
@@ -1889,11 +1895,11 @@ function msRender(){ const t=todayISO(); $('msTable').innerHTML=DB.msales.length
 function slExtra(){ const t=todayISO(); return DB.stock.filter(s=>s.qty<=s.min).map(s=>({t:'stock',s})).concat(DB.msales.filter(m=>!m.amcDone&&m.wEnd&&daysBetween(t,m.wEnd)<=30).map(m=>({t:'amc',m}))); }
 function slBellSec(S,sec,empty,rl){ const E=slExtra(); return sec('🛒 Sales — toner / ink',S.length+E.length,S.some(x=>x.st==='overdue'||x.st==='lapsed'))+((S.length||E.length)?S.map(x=>{ const bad=x.st==='overdue'||x.st==='lapsed'; return '<div class="bitem '+(bad?'bad':'warn')+'"><div><b>'+esc(x.c.name)+'</b><div style="margin:2px 0">'+slBadge(x)+'</div><div class="kdept">'+(x.last?'Last order '+fmtDMY(x.last):'No purchase yet')+(x.fu?' · Follow-up '+fmtDMY(x.fu)+(x.pl.fuNote?': '+esc(x.pl.fuNote):''):'')+'</div>'+rl('s:'+x.c.id)+'</div><div class="actions"><button class="btn sm ghost" onclick="slWA(\''+x.c.id+'\')">💬 Remind</button><button class="btn sm ghost" onclick="closeBell();showTab(\'sales\')">Open</button></div></div>'; }).join('')+E.map(e=>e.t==='stock'?'<div class="bitem warn"><div><b>Low stock: '+esc(e.s.item)+'</b><div class="kdept">'+e.s.qty+' left (alert at '+e.s.min+')</div></div><div class="actions"><button class="btn sm ghost" onclick="closeBell();showTab(\'sales\');slView(\'S\')">Open</button></div></div>':'<div class="bitem warn"><div><b>'+esc(cn(e.m.cid))+'</b><div style="margin:2px 0">Warranty '+(e.m.wEnd<todayISO()?'ended ':'ends ')+fmtDMY(e.m.wEnd)+' · '+esc(e.m.model)+'</div><div class="kdept">Offer an AMC</div>'+rl('m:'+e.m.id)+'</div><div class="actions"><button class="btn sm ghost" onclick="msAmc(\''+e.m.id+'\')">💬 Offer AMC</button><button class="btn sm ghost" onclick="closeBell();showTab(\'sales\');slView(\'M\')">Open</button></div></div>').join(''):empty('✅ No toner / ink orders due.')); }
 /* ===== sidebar navigation (Customers / Items / Sales / Accounts / Admin) ===== */
-const SD=[{g:'Customers',i:'👥',items:[['Customers','customers']]},{g:'Items',i:'📦',items:[['Stock & Pricing','sales','S'],['Machines','sales','M']]},{g:'Sales',i:'🛒',items:[['Quotes','sales','Q'],['Orders & Follow-ups','sales','main'],['Invoices','inv'],['Sales Overview','sales','D']]},{g:'Accounts',i:'🧾',items:[['Dashboard','dash'],['Reading Run','run'],['Payments & Statements','pay'],['Profitability','profit'],['Calendar','cal']]},{g:'Admin',i:'⚙️',items:[['Users','admin']]}];
+const SD=[{g:'Customers',i:'👥',items:[['Customers','customers']]},{g:'Items',i:'📦',items:[['Stock & Pricing','sales','S'],['Machines','sales','M']]},{g:'Sales',i:'🛒',items:[['Quotes','sales','Q'],['Orders & Follow-ups','sales','main'],['Invoices','inv'],['Sales Overview','sales','D']]},{g:'Accounts',i:'🧾',items:[['Dashboard','dash'],['Reading Run','run'],['Payments & Statements','pay'],['Profitability','profit'],['Billing Report','reports','bill'],['Calendar','cal']]},{g:'Reports',i:'📊',items:[['Reports Center','reports','']]},{g:'Admin',i:'⚙️',items:[['Users','admin']]}];
 function sdBuild(){ $('nav').innerHTML=SD.map((G,gi)=>'<div class="nv" data-g="'+gi+'"><button class="ng" onclick="ngToggle('+gi+',event)">'+G.i+' '+G.g+' <small>▾</small></button><div class="nd">'+G.items.map(it=>'<a href="#" data-t="'+it[1]+'" data-v="'+(it[2]||'')+'" onclick="go(\''+it[1]+'\',\''+(it[2]||'')+'\');return false">'+it[0]+'</a>').join('')+'</div></div>').join(''); }
 function ngToggle(gi,e){ e.stopPropagation(); const el=document.querySelector('#nav .nv[data-g="'+gi+'"]'), was=el.classList.contains('open'); sdClose(); if(!was) el.classList.add('open'); }
-function go(t,v){ showTab(t); if(t==='sales'&&v) slView(v); }
-function sdSync(t,v){ if(v==null) v=(t==='sales'&&typeof slV!=='undefined')?slV:''; document.querySelectorAll('#nav .nd a').forEach(a=>a.classList.toggle('on',a.dataset.t===t&&(a.dataset.v||'')===v)); document.querySelectorAll('#nav .nv').forEach(n=>n.querySelector('.ng').classList.toggle('on',!!n.querySelector('.nd a.on'))); }
+function go(t,v){ if(t==='reports'){ showTab(t); if(v) rpOpen(v); else rpBack(); return; } showTab(t); if(t==='sales'&&v) slView(v); }
+function sdSync(t,v){ if(v==null) v=(t==='sales'&&typeof slV!=='undefined')?slV:(t==='reports'&&rpCur==='bill')?'bill':''; document.querySelectorAll('#nav .nd a').forEach(a=>a.classList.toggle('on',a.dataset.t===t&&(a.dataset.v||'')===v)); document.querySelectorAll('#nav .nv').forEach(n=>n.querySelector('.ng').classList.toggle('on',!!n.querySelector('.nd a.on'))); }
 function sdToggle(){}
 function sdClose(){ document.querySelectorAll('#nav .nv.open').forEach(n=>n.classList.remove('open')); }
 document.addEventListener('click',sdClose);
@@ -1901,6 +1907,94 @@ document.addEventListener('click',sdClose);
 function slEdit(id){ const s=DB.sales.find(x=>x.id===id); if(!s) return; window.slEditId=id; $('sl_cust').value=s.cid; $('sl_date').value=s.date; $('sl_item').value=s.item; $('sl_qty').value=s.qty; $('sl_amt').value=s.amount; $('sl_inv').value=s.inv||''; $('sl_ref').value=s.ref||'Consumable'; $('sl_refn').value=s.refNote||''; $('sl_refn').style.display=$('sl_ref').value==='Others'?'':'none'; $('sl_addbtn').textContent='✔ Update'; $('sl_cust').scrollIntoView({behavior:'smooth',block:'center'}); }
 function stEdit(id){ const s=DB.stock.find(x=>x.id===id); if(!s) return; window.stEditId=id; $('st_item').value=s.item; $('st_qty').value=s.qty; $('st_min').value=s.min; $('st_cost').value=s.cost; $('st_price').value=s.price; $('st_item').scrollIntoView({behavior:'smooth',block:'center'}); toast('Editing — change the fields and click Add / update.'); }
 function msEdit(id){ const m=DB.msales.find(x=>x.id===id); if(!m) return; window.msEditId=id; $('ms_cust').value=m.cid; $('ms_date').value=m.date; $('ms_model').value=m.model; $('ms_serial').value=m.serial||''; const a=new Date(m.date),b=m.wEnd?new Date(m.wEnd):a; $('ms_war').value=m.wEnd?(b.getFullYear()-a.getFullYear())*12+b.getMonth()-a.getMonth():0; $('ms_model').scrollIntoView({behavior:'smooth',block:'center'}); toast('Editing — change the fields and click + Add machine sale.'); }
+/* ===== Reports Center + Billing Report ===== */
+const RP_CATS=['Lease','ORS','Consumables','AMC','Others'];
+const rpCat=r=>({Lease:'Lease',ORS:'ORS',Consumable:'Consumables',Consumables:'Consumables',AMC:'AMC',Others:'Others'}[r]||'Others');
+const rpSum=a=>a.reduce((x,y)=>x+(+y||0),0);
+let rpCur=null, rpRes=null, rpTitle='', rpSub='';
+const RP=[
+ {id:'bill',n:'Customer-wise Billing',c:'Billing',d:'Billing per customer by year / month / date, split into Lease, ORS, Consumables, AMC and Others',ctl:['pre','by','cust','cats']},
+ {id:'cat',n:'Billing by Category',c:'Billing',d:'Totals per period for Lease, ORS, Consumables, AMC and Others',ctl:['pre','by','cats']},
+ {id:'inv',n:'Invoice Details',c:'Billing',d:'Every invoice in the period with customer, reference and amount',ctl:['pre','cust','cats']},
+ {id:'bal',n:'Customer Balance Summary',c:'Receivables',d:'Invoiced, received and balance for every customer (as of today)',ctl:[]},
+ {id:'age',n:'AR Aging Summary',c:'Receivables',d:'Outstanding amounts per customer by age bucket',ctl:[]},
+ {id:'qte',n:'Quote Details',c:'Sales',d:'Quotations in the period with status and total',ctl:['pre','cust']},
+ {id:'itm',n:'Sales by Item',c:'Sales',d:'Toner / ink sold per item: quantity, sales, cost and margin',ctl:['pre','cust']},
+ {id:'amc',n:'Warranty & AMC Due',c:'Items',d:'Machines whose warranty has ended or ends soon',ctl:[]}];
+function rpPre(p){ const d=new Date(), y=d.getFullYear(), m=d.getMonth(), P=n=>String(n).padStart(2,'0'), iso=(a,b,c)=>a+'-'+P(b+1)+'-'+P(c), last=(yy,mm)=>new Date(yy,mm+1,0).getDate();
+  if(p==='This month') return [iso(y,m,1),iso(y,m,last(y,m))];
+  if(p==='Last month'){ const x=new Date(y,m-1,1), yy=x.getFullYear(), mm=x.getMonth(); return [iso(yy,mm,1),iso(yy,mm,last(yy,mm))]; }
+  if(p==='This quarter'){ const q=Math.floor(m/3)*3; return [iso(y,q,1),iso(y,q+2,last(y,q+2))]; }
+  if(p==='This year') return [y+'-01-01',y+'-12-31']; if(p==='Last year') return [(y-1)+'-01-01',(y-1)+'-12-31']; return null; }
+function rpDocs(){ const L=DB.invoices.map(v=>({date:v.date||'',cid:v.cid,no:v.no,cat:rpCat(v.ref||'Lease'),amt:+v.total||0,src:'Lease invoice'})), g={};
+  DB.sales.filter(x=>x.inv&&!/^Q-/.test(x.inv)).forEach(x=>{ const r=g[x.inv]=g[x.inv]||{date:x.date||'',cid:x.cid,no:x.inv,cat:rpCat(x.ref||'Consumable'),amt:0,src:'Sale invoice'}; r.amt+=+x.amount||0; }); return L.concat(Object.values(g)); }
+const rpFilter=o=>rpDocs().filter(d=>d.date>=o.from&&d.date<=o.to&&(!o.cid||d.cid===o.cid)&&o.cats.includes(d.cat));
+const rpKey=(o,d)=>o.by==='Year'?d.date.slice(0,4):o.by==='Month'?d.date.slice(0,7):d.date;
+function rpBill(o){ const m={}; rpFilter(o).forEach(d=>{ const p=rpKey(o,d), k=d.cid+'|'+p, r=m[k]=m[k]||{cid:d.cid,p,v:{}}; r.v[d.cat]=(r.v[d.cat]||0)+d.amt; });
+  const by={}; Object.values(m).forEach(r=>(by[r.cid]=by[r.cid]||[]).push(r)); const rows=[], bold=[], tot=o.cats.map(()=>0);
+  Object.keys(by).sort((a,b)=>cn(a).localeCompare(cn(b))).forEach(cid=>{ const ps=by[cid].sort((a,b)=>a.p.localeCompare(b.p)), sub=o.cats.map(()=>0);
+    ps.forEach(r=>{ const v=o.cats.map(c=>r.v[c]||0); rows.push([cn(cid),r.p,...v,rpSum(v)]); v.forEach((x,i)=>sub[i]+=x); });
+    if(ps.length>1){ rows.push(['Total — '+cn(cid),'',...sub,rpSum(sub)]); bold.push(rows.length-1); } sub.forEach((x,i)=>tot[i]+=x); });
+  return {cols:['Customer',o.by,...o.cats,'Total'],rows,bold,foot:['Grand total','',...tot,rpSum(tot)]}; }
+function rpCatRep(o){ const m={}; rpFilter(o).forEach(d=>{ const p=rpKey(o,d), r=m[p]=m[p]||{}; r[d.cat]=(r[d.cat]||0)+d.amt; }); const tot=o.cats.map(()=>0);
+  const rows=Object.keys(m).sort().map(p=>{ const v=o.cats.map(c=>m[p][c]||0); v.forEach((x,i)=>tot[i]+=x); return [p,...v,rpSum(v)]; }); return {cols:[o.by,...o.cats,'Total'],rows,foot:['Total',...tot,rpSum(tot)]}; }
+function rpInv(o){ const d=rpFilter(o).sort((a,b)=>a.date.localeCompare(b.date)||String(a.no).localeCompare(String(b.no))); return {cols:['Date','Invoice #','Customer','Category','Type','Amount'],rows:d.map(x=>[fmtDMY(x.date),x.no,cn(x.cid),x.cat,x.src,x.amt]),foot:['Total','','','','',rpSum(d.map(x=>x.amt))]}; }
+function rpBal(){ const rows=DB.customers.map(c=>{ const a=acct(c.id), i=a.docs.filter(d=>d.type==='Invoice').reduce((s,d)=>s+d.debit,0), r=a.docs.reduce((s,d)=>s+d.credit,0); return [c.name,i,r,a.balance]; }).filter(r=>r[1]||r[2]||r[3]).sort((a,b)=>b[3]-a[3]); return {cols:['Customer','Invoiced','Received / credited','Balance'],rows,foot:['Total',rpSum(rows.map(r=>r[1])),rpSum(rows.map(r=>r[2])),rpSum(rows.map(r=>r[3]))]}; }
+function rpAge(){ const rows=DB.customers.map(c=>{ const b=aging(acct(c.id)), t=b.cur+b.d30+b.d60+b.d90+b.d90p; return [c.name,b.cur,b.d30,b.d60,b.d90,b.d90p,t]; }).filter(r=>r[6]>0).sort((a,b)=>b[6]-a[6]); return {cols:['Customer','Not yet due','1–30 days','31–60 days','61–90 days','90+ days','Total'],rows,foot:['Total',...[1,2,3,4,5,6].map(i=>rpSum(rows.map(r=>r[i])))]}; }
+function rpQte(o){ const q=DB.quotes.filter(x=>x.date>=o.from&&x.date<=o.to&&(!o.cid||x.cid===o.cid)).sort((a,b)=>a.date.localeCompare(b.date)); return {cols:['Date','Quote #','Customer','Status','Total'],rows:q.map(x=>[fmtDMY(x.date),x.no,cn(x.cid),qStat(x),qTot(x).total]),foot:['Total','','','',rpSum(q.map(x=>qTot(x).total))]}; }
+function rpItm(o){ const g={}; DB.sales.filter(s=>s.date>=o.from&&s.date<=o.to&&(!o.cid||s.cid===o.cid)).forEach(s=>{ const k=(s.item||'').toLowerCase().trim()||'(no item)', r=g[k]=g[k]||{n:s.item||'(no item)',q:0,a:0,c:0}; r.q+=+s.qty||0; r.a+=+s.amount||0; r.c+=+s.cost||0; });
+  const L=Object.values(g).sort((a,b)=>b.a-a.a); return {cols:['Item','Qty','Sales','Cost','Margin'],rows:L.map(r=>[r.n,String(r.q),r.a,r.c,r.c>0?r.a-r.c:'—']),foot:['Total',String(rpSum(L.map(r=>r.q))),rpSum(L.map(r=>r.a)),rpSum(L.map(r=>r.c)),'']}; }
+function rpAmc(){ const t=todayISO(), L=DB.msales.filter(m=>m.wEnd).sort((a,b)=>a.wEnd.localeCompare(b.wEnd)); return {cols:['Customer','Machine','Serial #','Sold','Warranty ends','Status','AMC'],rows:L.map(m=>{ const d=daysBetween(t,m.wEnd); return [cn(m.cid),m.model,m.serial||'—',fmtDMY(m.date),fmtDMY(m.wEnd),d<0?'Ended '+(-d)+' days ago':d+' days left',m.amcDone?'Offered / done':'—']; })}; }
+function rpTable(r){ if(!r.rows.length) return '<div class="empty">No data for the selected filters.</div>'; const cell=v=>typeof v==='number'?'<td class="n">'+fmtM(v)+'</td>':'<td>'+esc(v==null?'':String(v))+'</td>', isN=i=>r.rows.some(x=>typeof x[i]==='number');
+  return '<table><thead><tr>'+r.cols.map((c,i)=>'<th'+(isN(i)?' class="n"':'')+'>'+esc(c)+'</th>').join('')+'</tr></thead><tbody>'+r.rows.map((row,k)=>'<tr'+((r.bold||[]).includes(k)?' style="font-weight:700;background:#f7f8fb"':'')+'>'+row.map(cell).join('')+'</tr>').join('')+(r.foot?'<tr style="font-weight:700;background:#fdf1de">'+r.foot.map(cell).join('')+'</tr>':'')+'</tbody></table>'; }
+function rpRun(){ const R=RP.find(x=>x.id===rpCur); if(!R) return; const o={from:$('rp_from').value,to:$('rp_to').value,by:$('rp_by').value,cid:R.ctl.includes('cust')?$('rp_cust').value:'',cats:R.ctl.includes('cats')?RP_CATS.filter(c=>$('rp_c_'+c).checked):RP_CATS};
+  if(R.ctl.includes('pre')&&(!o.from||!o.to)){ $('rpOut').innerHTML='<div class="empty">Pick From and To dates.</div>'; return; }
+  rpRes=({bill:rpBill,cat:rpCatRep,inv:rpInv,bal:rpBal,age:rpAge,qte:rpQte,itm:rpItm,amc:rpAmc})[R.id](o); rpTitle=R.n; rpSub=(R.ctl.includes('pre')?'Period: '+fmtDMY(o.from)+' to '+fmtDMY(o.to):'As of '+fmtDMY(todayISO()))+(o.cid?' · '+cn(o.cid):'');
+  $('rpOut').innerHTML='<div class="hint" style="margin:10px 2px">'+esc(rpSub)+'</div><div class="card"><div class="tw">'+rpTable(rpRes)+'</div></div>'; }
+function rpPreChg(){ const p=rpPre($('rp_pre').value); if(p){ $('rp_from').value=p[0]; $('rp_to').value=p[1]; } rpRun(); }
+function rpCustom(){ $('rp_pre').value='Custom'; rpRun(); }
+function rpOpen(id){ const R=RP.find(x=>x.id===id); if(!R) return; rpCur=id; $('rpHome').style.display='none'; $('rpView').style.display=''; $('rpTitle').textContent=R.n; $('rpDesc').textContent=R.d;
+  $('rp_cust').innerHTML='<option value="">All customers</option>'+DB.customers.map(c=>'<option value="'+c.id+'">'+esc(c.name)+'</option>').join(''); $('rp_pre').value='This month'; const p=rpPre('This month'); $('rp_from').value=p[0]; $('rp_to').value=p[1];
+  [['pre','rp_w_pre'],['by','rp_w_by'],['cust','rp_w_cust'],['cats','rp_w_cats']].forEach(([k,w])=>$(w).style.display=R.ctl.includes(k)?'':'none'); RP_CATS.forEach(c=>$('rp_c_'+c).checked=true);
+  (DB.rpVisits=DB.rpVisits||{})[id]=new Date().toISOString(); save(); rpRun(); sdSync('reports'); }
+function rpBack(){ rpCur=null; renderReports(); sdSync('reports',''); }
+function rpFavT(id){ DB.rpFav=DB.rpFav||{}; DB.rpFav[id]=!DB.rpFav[id]; save(); renderReports(); }
+function rpCsv(){ if(!rpRes||!rpRes.rows.length){ toast('Nothing to export.',true); return; } const rows=rpRes.rows.concat(rpRes.foot?[rpRes.foot]:[]).map(r=>{ const o={}; rpRes.cols.forEach((c,i)=>o[c]=r[i]==null?'':r[i]); return o; }); downloadCSV(rpTitle.replace(/\W+/g,'_')+'_'+todayISO()+'.csv',toCSV(rpRes.cols,rows)); }
+function rpPrint(){ if(!rpRes) return; const w=window.open('','_blank'); if(!w) return; w.document.write('<html><head><title>'+esc(rpTitle)+'</title><style>body{font-family:Arial;padding:24px;font-size:12px}table{width:100%;border-collapse:collapse}th,td{border-bottom:1px solid #ccc;padding:5px;text-align:left}.n{text-align:right}th{background:#f1f3f7}</style></head><body><h2>'+esc((DB.company||{}).name||'')+'</h2><h3>'+esc(rpTitle)+'</h3><p>'+esc(rpSub)+'</p>'+rpTable(rpRes)+'</body></html>'); w.document.close(); w.print(); }
+function renderReports(){ if(rpCur){ $('rpHome').style.display='none'; $('rpView').style.display=''; return; } $('rpHome').style.display=''; $('rpView').style.display='none';
+  const q=($('rp_q').value||'').toLowerCase(), cf=$('rp_cat').value, fav=DB.rpFav||{}, vis=DB.rpVisits||{}, rows=RP.filter(r=>(!cf||r.c===cf)&&(!q||(r.n+' '+r.d).toLowerCase().includes(q))).sort((a,b)=>(fav[b.id]?1:0)-(fav[a.id]?1:0));
+  const dt=iso=>{ const d=new Date(iso), P=n=>String(n).padStart(2,'0'); return P(d.getDate())+'.'+P(d.getMonth()+1)+'.'+String(d.getFullYear()).slice(2)+' '+P(d.getHours())+':'+P(d.getMinutes()); };
+  $('rpCount').textContent=rows.length;
+  $('rpList').innerHTML='<table><thead><tr><th>Report name</th><th>Report category</th><th>Description</th><th>Last visited</th></tr></thead><tbody>'+rows.map(r=>'<tr><td style="white-space:nowrap"><span onclick="rpFavT(\''+r.id+'\')" style="cursor:pointer;color:#e0a100;margin-right:8px">'+(fav[r.id]?'★':'☆')+'</span><a href="#" onclick="rpOpen(\''+r.id+'\');return false" style="color:var(--blue);font-weight:600;text-decoration:none">'+esc(r.n)+'</a></td><td>'+r.c+'</td><td>'+esc(r.d)+'</td><td>'+(vis[r.id]?dt(vis[r.id]):'—')+'</td></tr>').join('')+'</tbody></table>'; }
+/* ===== Invoice history: date range + edit ===== */
+function invMonth(){ const p=rpPre('This month'); $('inv_from').value=p[0]; $('inv_to').value=p[1]; window.invInit=true; }
+let iedKind=null, iedKey=null;
+function invEdit(kind,key){ iedKind=kind; iedKey=key; $('ied_cust').innerHTML=DB.customers.map(c=>'<option value="'+c.id+'">'+esc(c.name)+'</option>').join('');
+  if(kind==='L'){ const v=DB.invoices[key]; $('ied_no').value=v.no; $('ied_date').value=v.date; $('ied_ref').value=v.ref||'Lease'; $('ied_note').value=''; $('ied_total').value=v.total; $('ied_total').disabled=true; $('ied_cust').value=v.cid; $('ied_cust').disabled=true; $('ied_hint').textContent='Lease invoice: customer and amount are fixed because the printed invoice and the ledger depend on them.'; }
+  else { const L=DB.sales.filter(x=>x.inv===key), f=L[0]; $('ied_no').value=key; $('ied_date').value=f.date; $('ied_ref').value=f.ref||'Consumable'; $('ied_note').value=f.refNote||''; $('ied_total').value=rpSum(L.map(x=>x.amount)); $('ied_total').disabled=L.length>1; $('ied_cust').value=f.cid; $('ied_cust').disabled=false; $('ied_hint').textContent=L.length>1?'This invoice has '+L.length+' items — edit the individual items under Sales → Orders & Follow-ups.':''; }
+  openModal('iedOverlay'); }
+function iedSave(){ const no=$('ied_no').value.trim(), date=$('ied_date').value; if(!no||!date){ toast('Invoice # and date are required.',true); return; }
+  const cur=iedKind==='L'?DB.invoices[iedKey].no:iedKey; if(no!==cur&&(DB.invoices.some(v=>v.no===no)||DB.sales.some(x=>x.inv===no))){ toast('Invoice number '+no+' already exists.',true); return; }
+  if(iedKind==='L'){ const v=DB.invoices[iedKey], on=v.no, od=v.date; v.no=no; v.date=date; v.ref=$('ied_ref').value; if(v.html){ v.html=v.html.split(on).join(no); if(od!==date) v.html=v.html.split(fmtDMY(od)).join(fmtDMY(date)); } }
+  else { const L=DB.sales.filter(x=>x.inv===iedKey); L.forEach(x=>{ x.inv=no; x.date=date; x.cid=$('ied_cust').value; x.ref=$('ied_ref').value; x.refNote=$('ied_note').value.trim(); }); if(L.length===1){ const t=parseFloat($('ied_total').value); if(t>=0) L[0].amount=t; } }
+  save(); closeModal('iedOverlay'); renderAll(); renderInvoices(); toast('Invoice updated.'); }
+const REFS=['Lease','ORS','Consumable','AMC','Others'];
+function invSetRef(i,v){ DB.invoices[i].ref=v; save(); renderInvoices(); }
+function invSetSaleRef(no,v){ DB.sales.filter(x=>x.inv===no).forEach(x=>x.ref=v); save(); renderInvoices(); }
+function renderInvoices(){
+  if(!window.invInit) invMonth();
+  const el=$('invTable'), flt=$('inv_ref').value, f=$('inv_from').value, t=$('inv_to').value, g={};
+  DB.sales.filter(x=>x.inv&&!/^Q-/.test(x.inv)).forEach(x=>{ const r=g[x.inv]=g[x.inv]||{kind:'S',no:x.inv,date:x.date,cid:x.cid,total:0,ref:x.ref||'Consumable',note:x.refNote||'',items:[]}; r.total+=+x.amount||0; r.items.push(x.item); });
+  let rows=DB.invoices.map((v,i)=>({kind:'L',v,i,no:v.no,date:v.date,ref:v.ref||'Lease',total:+v.total||0})).concat(Object.values(g));
+  if(flt) rows=rows.filter(r=>r.ref===flt); if(f) rows=rows.filter(r=>(r.date||'')>=f); if(t) rows=rows.filter(r=>(r.date||'')<=t);
+  rows.sort((a,b)=>(b.date||'').localeCompare(a.date||'')||String(b.no).localeCompare(String(a.no)));
+  $('invSum').textContent=rows.length+' invoice(s) · AED '+fmtM(rpSum(rows.map(r=>r.total)));
+  if(!rows.length){ el.innerHTML='<div class="empty">No invoices in this period'+(flt?' with reference '+flt:'')+'. Change the From / To dates or click “This month”.</div>'; return; }
+  const cache={}; const st=v=>{ if(!custById(v.cid)) return '<span class="badge gray">—</span>'; const a=cache[v.cid]||(cache[v.cid]=acct(v.cid)); const d=a.debits.find(x=>x.inv===v); return !d?'':d.open<=0?'<span class="badge good">Paid</span>':d.overdue?`<span class="badge bad">Overdue · ${fmtM(d.open)}</span>`:`<span class="badge warn">Open · ${fmtM(d.open)}</span>`; };
+  const sel=(cur,fn)=>`<select onchange="${fn}" style="width:auto;padding:2px 4px">${REFS.map(r=>`<option ${r===cur?'selected':''}>${r}</option>`).join('')}</select>`;
+  el.innerHTML=`<table><thead><tr><th>Invoice #</th><th>Date</th><th>Customer</th><th>Ref</th><th>Period / Items</th><th class="n">Total (AED)</th><th>Status</th><th></th></tr></thead><tbody>${rows.map(r=>{ if(r.kind==='L'){ const v=r.v,i=r.i; return `<tr><td><b>${esc(v.no)}</b></td><td>${fmtDMY(v.date)}</td><td>${esc(v.cname)}</td><td>${sel(r.ref,`invSetRef(${i},this.value)`)}</td><td>${v.from} → ${v.to}</td><td class="n">${fmtM(v.total)}</td><td>${st(v)}</td><td><div class="actions"><button class="btn sm ghost" onclick="invEdit('L',${i})">✎ Edit</button><button class="btn sm ghost" onclick="viewInvoice(${i})">View / Reprint</button><button class="btn sm ghost" onclick="viewInvoice(${i});sendEmail()">✉</button><button class="btn sm ghost" onclick="viewInvoice(${i});sendWhatsApp()">WhatsApp</button></div></td></tr>`; }
+    return `<tr><td><b>${esc(r.no)}</b></td><td>${fmtDMY(r.date)}</td><td>${esc((custById(r.cid)||{name:'(deleted)'}).name)}</td><td>${sel(r.ref,`invSetSaleRef('${esc(r.no)}',this.value)`)}${r.ref==='Others'&&r.note?`<div class="hint" style="margin:0">${esc(r.note)}</div>`:''}</td><td>${esc(r.items[0]||'')}${r.items.length>1?` +${r.items.length-1} more`:''}</td><td class="n">${fmtM(r.total)}</td><td><span class="badge gray">Sale</span></td><td><div class="actions"><button class="btn sm ghost" onclick="invEdit('S','${esc(r.no)}')">✎ Edit</button></div></td></tr>`; }).join('')}</tbody></table>`;
+}
 sdBuild(); showTab('customers'); renderBell(); updateNav(); bkCheck(true); setInterval(()=>bkCheck(),1800000);
 document.addEventListener('click',e=>{ if(!e.target.closest('.bellwrap')) closeBell(); });
 
@@ -2011,7 +2105,7 @@ document.addEventListener('click',e=>{ if(!e.target.closest('.bellwrap')) closeB
   window.cloudAdmin=async function(){ const el=g('admUsers'); if(!sb||!ME){ el.innerHTML='<div class="empty">Sign in as Admin or Manager to see users.</div>'; return; } el.innerHTML='<div class="empty">Loading…</div>';
     const r=await sb.from('profiles').select('*').order('created_at'); if(r.error){ el.innerHTML='<div class="empty">'+esc(r.error.message)+'</div>'; return; } const isA=ME.role==='admin';
     const inv='<div class="card pad" style="margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:240px"><b>Add a new user</b><div class="hint" style="margin:2px 0 0">Ask them to open the site and click <b>Create account</b> (name, email, password). They appear below as <b>Pending</b> — set them to <b>Active</b> and choose Manager or Sales Executive.</div></div><button class="btn" onclick="navigator.clipboard.writeText(\'Hello, please create your account for the Managed Print Contracts & Billing system: \'+location.origin+\' — click Create account, enter your name, email and a password, then tell me so I can approve you.\');toast(\'Invitation message copied.\')">📋 Copy invite message</button></div>'; el.innerHTML=inv+'<table><thead><tr><th>User name</th><th>Email</th><th>Role</th><th>Status</th><th>Joined</th><th></th></tr></thead><tbody>'+r.data.map(u=>{ const me=u.id===ME.id, ed=isA&&!me;
-      return '<tr><td><b>'+esc(u.display_name||'')+'</b>'+(me?' <small>(you)</small>':'')+'</td><td>'+esc(u.email||'')+'</td><td>'+(ed?'<select onchange="cloudSetUser(\''+u.id+'\',{role:this.value})" style="width:auto">'+['admin','manager','sales'].map(k=>'<option value="'+k+'"'+(u.role===k?' selected':'')+'>'+ROLE[k]+'</option>').join('')+'</select>':ROLE[u.role])+'</td><td>'+(ed?'<select onchange="cloudSetUser(\''+u.id+'\',{active:this.value===\'1\'})" style="width:auto"><option value="1"'+(u.active?' selected':'')+'>Active</option><option value="0"'+(u.active?'':' selected')+'>Pending / blocked</option></select>':badge(u.active?'good':'warn',u.active?'Active':'Pending'))+'</td><td>'+fmtDMY((u.created_at||'').slice(0,10))+'</td><td>'+(me?'':'<button class="btn sm ghost" onclick="cloudViewUser(\''+u.id+'\')">View data</button>')+'</td></tr>'; }).join('')+'</tbody></table>'+(isA?'<div class="hint" style="padding:8px 14px">New accounts stay <b>Pending</b> until you set them to Active. Sales Executives see only Customers, Invoices and Sales; Managers can view every user\'s data (read-only).</div>':'<div class="hint" style="padding:8px 14px">Only the Admin can approve accounts or change roles.</div>'); };
+      return '<tr><td><b>'+esc(u.display_name||'')+'</b>'+(me?' <small>(you)</small>':'')+'</td><td>'+esc(u.email||'')+'</td><td>'+(ed?'<select onchange="cloudSetUser(\''+u.id+'\',{role:this.value})" style="width:auto">'+['admin','manager','sales'].map(k=>'<option value="'+k+'"'+(u.role===k?' selected':'')+'>'+ROLE[k]+'</option>').join('')+'</select>':ROLE[u.role])+'</td><td>'+(ed?'<select onchange="cloudSetUser(\''+u.id+'\',{active:this.value===\'1\'})" style="width:auto"><option value="1"'+(u.active?' selected':'')+'>Active</option><option value="0"'+(u.active?'':' selected')+'>Pending / blocked</option></select>':badge(u.active?'good':'warn',u.active?'Active':'Pending'))+'</td><td>'+fmtDMY((u.created_at||'').slice(0,10))+'</td><td>'+(me?'':'<button class="btn sm ghost" onclick="cloudViewUser(\''+u.id+'\')">View data</button>')+'</td></tr>'; }).join('')+'</tbody></table>'+(isA?'<div class="hint" style="padding:8px 14px">New accounts stay <b>Pending</b> until you set them to Active. Sales Executives see only Customers, Invoices and Sales; Managers can view every user\'s data (read-only).</div>':'<div class="hint" style="padding:8px 14px">Only the Admin can approve accounts or change roles.</div>'); if(window.admSecurity) window.admSecurity(isA); };
   window.cloudSetUser=async function(id,patch){ const r=await sb.from('profiles').update(patch).eq('id',id).select(); if(r.error||!r.data.length){ toast(r.error?r.error.message:'Not allowed.',true); } else toast('User updated.'); cloudAdmin(); };
   window.cloudViewUser=async function(id){ const box=g('admView'); box.innerHTML='<div class="empty">Loading…</div>';
     const p=await sb.from('profiles').select('display_name,role').eq('id',id).maybeSingle(), r=await sb.from('app_state').select('data,updated_at').eq('owner',id).maybeSingle();
@@ -2025,6 +2119,46 @@ document.addEventListener('click',e=>{ if(!e.target.closest('.bellwrap')) closeB
   try{ const lg=document.querySelector('.logo-box img'); if(lg&&lg.src) document.querySelectorAll('#cloudBox .cl-img').forEach(i=>i.src=lg.src); }catch(e){}
   (async function(){ if(!window.supabase){ showLogin(); msg('Cloud library could not load (offline?). You can work offline.'); return; }
     sb=window.supabase.createClient(SB_URL,SB_KEY); const s=(await sb.auth.getSession()).data.session; if(s) await onIn(s.user); else showLogin(); })();
+})();
+</script>
+<div id="lockBox" style="position:fixed;inset:0;z-index:10001;display:none;align-items:center;justify-content:center;background:linear-gradient(150deg,#14213d,#26365e);font-family:Inter,'Segoe UI',system-ui,Arial,sans-serif">
+  <div style="background:#fff;border-radius:16px;padding:30px;width:100%;max-width:380px;box-shadow:0 18px 50px rgba(0,0,0,.35);text-align:center">
+    <img id="lk_logo" alt="" style="height:44px;margin-bottom:8px">
+    <h2 style="margin:6px 0 4px;font-size:1.2rem;color:#14213d">🔒 Session locked</h2>
+    <div style="color:#5b6478;font-size:.85rem;margin-bottom:16px">You were inactive. Enter your secure key to continue.</div>
+    <input id="lk_key" type="password" autocomplete="off" placeholder="XXXX-XXXX-XXXX" onkeydown="if(event.key==='Enter')lockTry()" style="width:100%;padding:12px;border:1px solid #d5d9e2;border-radius:9px;box-sizing:border-box;font-size:1rem;letter-spacing:.12em;text-align:center;text-transform:uppercase;margin-bottom:10px">
+    <div id="lk_msg" style="min-height:18px;color:#dc2626;font-size:.82rem;margin-bottom:8px"></div>
+    <button id="lk_go" onclick="lockTry()" style="width:100%;padding:12px;background:#f2a541;color:#14213d;border:0;border-radius:9px;font-weight:700;font-size:.95rem;cursor:pointer">Unlock</button>
+    <div style="margin-top:12px;font-size:.8rem"><a href="#" onclick="lockOut();return false" style="color:#2f6fed;text-decoration:none">Forgot the key? Sign out</a></div>
+  </div>
+</div>
+<script>
+(function(){
+  const g=id=>document.getElementById(id); let t=null, locked=false, fails=0, lastW=0;
+  const cfg=()=>(DB.company&&DB.company.lock)||{}, active=()=>{ const c=cfg(); return !!(c.on&&c.hash); };
+  async function sha(s){ if(window.crypto&&crypto.subtle){ const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('plc|'+s)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''); } let h=0; for(const ch of 'plc|'+s) h=(h*31+ch.charCodeAt(0))|0; return 'x'+h; }
+  const norm=k=>String(k||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  function lock(){ if(!active()||locked) return; locked=true; try{ sessionStorage.setItem('plc_locked','1'); }catch(e){} g('lockBox').style.display='flex'; g('lk_key').value=''; g('lk_msg').textContent=''; try{ const lg=document.querySelector('.logo-box img'); if(lg&&lg.src) g('lk_logo').src=lg.src; }catch(e){} setTimeout(()=>g('lk_key').focus(),60); }
+  function arm(){ clearTimeout(t); if(!active()||locked) return; t=setTimeout(lock,Math.max(1,+cfg().mins||1)*60000); const n=Date.now(); if(n-lastW>5000){ lastW=n; try{ localStorage.setItem('plc_last',n); }catch(e){} } }
+  ['mousemove','mousedown','keydown','touchstart','scroll','click'].forEach(e=>document.addEventListener(e,()=>{ if(!locked) arm(); },{passive:true}));
+  window.lockTry=async function(){ if(fails>=5){ g('lk_msg').textContent='Too many attempts — wait 30 seconds.'; return; } const h=await sha(norm(g('lk_key').value));
+    if(h===cfg().hash){ locked=false; fails=0; try{ sessionStorage.removeItem('plc_locked'); }catch(e){} g('lockBox').style.display='none'; arm(); }
+    else { fails++; g('lk_msg').textContent='Wrong key.'+(fails>=5?' Locked for 30 seconds.':''); if(fails>=5) setTimeout(()=>{ fails=0; g('lk_msg').textContent=''; },30000); } };
+  window.lockOut=function(){ try{ sessionStorage.removeItem('plc_locked'); }catch(e){} if(window.cloudOut){ locked=false; g('lockBox').style.display='none'; cloudOut(); } else location.reload(); };
+  window.lockNow=function(){ lock(); };
+  window.lockInit=function(){ if(!active()){ clearTimeout(t); return; } let stale=false; try{ stale=(Date.now()-(+localStorage.getItem('plc_last')||0))>Math.max(1,+cfg().mins||1)*60000; }catch(e){} let was=false; try{ was=!!sessionStorage.getItem('plc_locked'); }catch(e){} if(was||stale) lock(); else arm(); };
+  /* Admin → Security card */
+  function key(){ const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789', r=crypto.getRandomValues(new Uint8Array(12)); const s=[...r].map(x=>A[x%A.length]).join(''); return s.slice(0,4)+'-'+s.slice(4,8)+'-'+s.slice(8); }
+  window.admSecurity=function(isA){ const el=g('admSec'); if(!isA){ el.innerHTML=''; return; } const c=cfg();
+    el.innerHTML='<div class="card pad"><div class="sec" style="margin:0 0 10px"><h2>🔒 Security — auto-lock</h2><span style="margin-left:auto" class="badge '+(active()?'good':'warn')+'">'+(active()?'Active':'Off')+'</span></div>'
+     +'<div class="hint" style="margin:0 0 12px">When nobody uses the app for the chosen time, the whole page is locked. Only someone with the secure key can continue. The key is generated here, shown once, and stored only as a one-way hash.</div>'
+     +'<div class="filters"><div class="fg"><label>Lock after (minutes of no use)</label><select id="lk_mins">'+[1,2,5,10,15,30].map(m=>'<option'+(m===(+c.mins||1)?' selected':'')+'>'+m+'</option>').join('')+'</select></div>'
+     +'<div class="fg"><label>Auto-lock</label><select id="lk_on"><option value="1"'+(c.on?' selected':'')+'>On</option><option value="0"'+(c.on?'':' selected')+'>Off</option></select></div>'
+     +'<div class="row-end" style="display:flex;gap:8px"><button class="btn" onclick="lockSave()">Save settings</button><button class="btn ghost" onclick="lockGen()">🔑 Generate secure key</button><button class="btn ghost" onclick="lockNow()" '+(active()?'':'disabled')+'>Lock now</button></div></div><div id="lk_new" style="margin-top:12px"></div></div>'; };
+  window.lockSave=function(){ const c=Object.assign({},cfg(),{on:g('lk_on').value==='1',mins:+g('lk_mins').value}); if(c.on&&!c.hash){ toast('Generate a secure key first.',true); return; } DB.company.lock=c; save(); toast('Security settings saved.'); lockInit(); admSecurity(true); };
+  window.lockGen=async function(){ if(active()&&!confirm('Generate a NEW key? The old key stops working for everyone.')) return; const k=key(), h=await sha(norm(k)); DB.company.lock={on:true,mins:+g('lk_mins').value||1,hash:h,setAt:new Date().toISOString()}; save(); admSecurity(true);
+    g('lk_new').innerHTML='<div style="border:2px dashed #f2a541;border-radius:10px;padding:14px;background:#fdf1de"><b>Your secure key (shown only once):</b><div style="font:700 1.5rem monospace;letter-spacing:.12em;margin:8px 0" id="lk_val">'+k+'</div><button class="btn sm" onclick="navigator.clipboard.writeText(document.getElementById(\'lk_val\').textContent);toast(\'Key copied.\')">Copy key</button> <span class="hint">Save it somewhere safe and share it only with your team. Auto-lock is now ON.</span></div>'; lockInit(); };
+  setTimeout(lockInit,300);
 })();
 </script>
 </body></html>
