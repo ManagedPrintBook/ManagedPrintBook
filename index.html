@@ -476,7 +476,7 @@ body.ro #v-contracts .btn:not(.ro-ok){display:none!important}
   </div>
 </section>
 
-<section id="v-admin" style="display:none"><div class="sec" style="margin-top:0"><h2>Admin — users &amp; roles</h2><button class="btn ghost sm" onclick="renderAdmin()" style="margin-left:auto">↻ Refresh</button></div><div class="card"><div class="tw" id="admUsers"></div></div><div id="admSec" style="margin-top:14px"></div><div id="admView" style="margin-top:14px"></div></section>
+<section id="v-admin" style="display:none"><div class="sec" style="margin-top:0"><h2>Admin — users &amp; roles</h2><button class="btn ghost sm" onclick="renderAdmin()" style="margin-left:auto">↻ Refresh</button></div><div class="card"><div class="tw" id="admUsers"></div></div><div id="admSec" style="margin-top:14px"></div><div id="admAudit" style="margin-top:14px"></div><div id="admTrash" style="margin-top:14px"></div><div id="admView" style="margin-top:14px"></div></section>
 
 <section id="v-profit" style="display:none">
   <div class="card pad"><div class="filters">
@@ -513,7 +513,7 @@ function newKid(){ return 'k'+Math.random().toString(36).slice(2,8)+Date.now().t
 function normalizeData(){
   if(!DB.company) DB.company=emptyCompany();
   if(DB.company.name==='Manchester Technology LLC' && DB.company.trn==='100558517700003' && !DB.company.bankAcNo_kept){ /* keep user's saved company */ }
-  DB.invoices=DB.invoices||[]; DB.sales=DB.sales||[]; DB.quotes=DB.quotes||[]; DB.stock=DB.stock||[]; DB.msales=DB.msales||[]; DB.remLog=DB.remLog||{}; DB.ledger=DB.ledger||[]; DB.models=DB.models||{}; DB.remLog=DB.remLog||{}; DB.backup=Object.assign({on:false,days:7,last:''},DB.backup||{});
+  DB.invoices=DB.invoices||[]; DB.audit=DB.audit||[]; DB.trash=DB.trash||[]; DB.sales=DB.sales||[]; DB.quotes=DB.quotes||[]; DB.stock=DB.stock||[]; DB.msales=DB.msales||[]; DB.remLog=DB.remLog||{}; DB.ledger=DB.ledger||[]; DB.models=DB.models||{}; DB.remLog=DB.remLog||{}; DB.backup=Object.assign({on:false,days:7,last:''},DB.backup||{});
   DB.customers=DB.customers||[];
   DB.customers.forEach(c=>{
     ['addr','trn','email','phone','terms','contact','tel','company','salutation','first','last','remarks'].forEach(k=>{ c[k]=c[k]||''; }); c.ctype=c.ctype||'Business'; c.lang=c.lang||'English'; if(!Array.isArray(c.persons)) c.persons=[];
@@ -540,7 +540,7 @@ function normalizeData(){
 }
 normalizeData();
 function paintBadge(){ const e=$('storageBadge'); if(e) e.style.display='none'; }
-function save(){ try{ syncQueue(); }catch(e){} return true; }
+function save(){ try{ syncQueue(); }catch(e){} try{ auditSoon(); }catch(e){} return true; }
 function saveNow(){ save(); toast('Saved to the cloud.'); }
 function backupJSON(auto){
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(DB,null,2)],{type:'application/json'}));
@@ -843,7 +843,7 @@ function showTab(t){
   ['customers','run','dash','pay','inv','cal','profit','sales','admin','reports','contracts'].forEach(x=>{ $('v-'+x).style.display=x===t?'':'none'; });
   ({customers:renderCustomers,run:renderRun,dash:renderDash,pay:renderPay,inv:renderInvoices,cal:renderCal,profit:renderProfit,sales:renderSales,admin:renderAdmin,reports:renderReports,contracts:renderContracts})[t](); sdSync(t); sdClose();
 }
-function renderAdmin(){ if(window.cloudAdmin) window.cloudAdmin(); }
+function renderAdmin(){ if(window.cloudAdmin) window.cloudAdmin(); try{ auditRender(); }catch(e){} }
 function renderAll(){ renderCustomers(); renderDetail(); renderRun(); renderDash(); renderPay(); renderInvoices(); if($('v-cal').style.display!=='none') renderCal(); if($('v-profit').style.display!=='none') renderProfit(); if($('v-sales').style.display!=='none') renderSales(); ctRender(); updateNav(); }
 function fillCustSelects(){
   const opt=(sel,all)=>{ const cur=sel.value; sel.innerHTML=(all?'<option value="all">All customers</option>':'')+DB.customers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join(''); if([...sel.options].some(o=>o.value===cur)) sel.value=cur; };
@@ -2279,7 +2279,7 @@ function sdSync(t,v){ if(v==null) v=(t==='sales'&&typeof slV!=='undefined')?slV:
   document.querySelectorAll('#nav .nd a').forEach(a=>{ const on=a.dataset.t===t&&(a.dataset.v||'')===key; a.classList.toggle('on',on); if(on){ lab=a.parentNode.parentNode.querySelector('.ng').textContent.replace('▾','').replace(/^\S+\s/,'').trim(); title=(a.childNodes[0]?a.childNodes[0].textContent:a.textContent).trim(); } });
   document.querySelectorAll('#nav .nv').forEach(n=>n.querySelector('.ng').classList.toggle('on',!!n.querySelector('.nd a.on')));
   if(sp){ lab=sp[0]; title=sp[1]; } if(lab&&$('pgBc')){ $('pgBc').textContent=lab; $('pgT').textContent=title; } }
-function adoptDB(o){ DB=o; normalizeData(); fillCustSelects(); $('run_month').value=ymNow(); if(DB.customers.length) $('pay_cust').value=DB.customers[0].id; pNew(); renderAll(); renderBell(); }
+function adoptDB(o){ DB=o; normalizeData(); try{ auditReset(); }catch(e){} fillCustSelects(); $('run_month').value=ymNow(); if(DB.customers.length) $('pay_cust').value=DB.customers[0].id; pNew(); renderAll(); renderBell(); }
 /* ===== v6: Contracts heading ===== */
 let ctV='A', ctCid=null, ctKid=null, ctFilterCust='';
 const ctTypeOk=(v,k)=>v==='A'||(v==='L'&&k.type==='Lease')||(v==='S'&&String(k.type).startsWith('Sale'))||(v==='F'&&(k.type==='AMC'||k.type==='FSMA'));
@@ -2387,7 +2387,7 @@ document.addEventListener('click',e=>{ if(!e.target.closest('.bellwrap')) closeB
 (function(){
   const SB_URL='https://zaogpwfobqvayeejfvxc.supabase.co', SB_KEY='sb_publishable_NWe7FFqt7_C0qOOZoqvsFQ_tH9qBCty', TS='plc_cloud_ts', DIRTY='plc_dirty', UIDK='plc_uid';
   const ROLE={admin:'Admin',manager:'Manager',sales:'Sales Executive'};
-  let sb=null, uid=null, timer=null, busy=false, ME=null; const g=id=>document.getElementById(id);
+  let sb=null, uid=null, timer=null, busy=false, ME=null; window.curUser=()=>ME; const g=id=>document.getElementById(id);
   const pill=(t,out,lbl)=>{ g('cloudTxt').textContent=t; const o=g('cloudOut'); o.style.display=out?'':'none'; o.textContent=lbl||'Sign out'; };
   const msg=(t,ok)=>{ const m=g('cl_msg'); m.style.color=ok?'#0d9260':'#dc2626'; m.textContent=t||''; };
   const showLogin=()=>{ g('cloudBox').style.display='flex'; pill('☁ Signed out'); };
@@ -2513,6 +2513,60 @@ document.addEventListener('click',e=>{ if(!e.target.closest('.bellwrap')) closeB
   window.lockChange=async function(){ const cur=await kuAsk('verify','Change secure key','Enter the current 4-digit key.'); if(!cur) return; if(await sha(cur)!==cfg().hash){ toast('Wrong key.',true); return; } const pin=await kuAsk('set','New 4-digit secure key',''); if(!pin) return; DB.company.lockv2=Object.assign({},cfg(),{hash:await sha(pin)}); save(); toast('Secure key changed.'); };
   window.lockReset=async function(){ const pw=await kuAsk('pw','Reset auto-lock','Enter your account password to remove the current key.'); if(!pw) return; const ok=window.cloudVerifyPw?await cloudVerifyPw(pw):false; if(!ok){ toast('Password not accepted.',true); return; } DB.company.lockv2={on:false,mins:cfg().mins||1}; save(); toast('Auto-lock reset to OFF. Turn it ON again to set a new key.'); admSecurity(true); lockInit(); };
   setTimeout(lockInit,300);
+})();
+</script>
+<script>
+/* ===== Audit log + Recycle bin ===== */
+(function(){
+  const COLL=[['customers','Customer'],['invoices','Lease invoice'],['sales','Sale line'],['quotes','Quote'],['ledger','Payment / ledger entry'],['msales','Machine sale'],['stock','Stock item']];
+  let snap=null, tmr=null;
+  const who=()=>{ const m=window.curUser&&window.curUser(); return m?m.name:'Offline'; };
+  const keyOf=(k,x)=>{ if(!x) return ''; if(k==='invoices') return x._aid||(x._aid=uid()); return x.id||x.no||x.inv||''; };
+  const money=v=>v===undefined||v===null||v===''?'':' · AED '+(Number(v)||0).toFixed(2);
+  const custName=x=>{ const c=(DB.customers||[]).find(c=>c.id===x.cid); return c?c.name:''; };
+  function lbl(k,x,long){ const cn=custName(x);
+    if(k==='customers') return x.name||'(unnamed customer)';
+    if(k==='invoices') return (x.no||'')+(x.cname?' · '+x.cname:'')+money(x.total);
+    if(k==='sales') return (x.inv||x.item||'Sale')+(long&&x.inv&&x.item?' · '+x.item:'')+(cn?' · '+cn:'');
+    if(k==='quotes') return (x.no||'Quote')+(cn?' · '+cn:'');
+    if(k==='ledger') return (x.type||'Entry')+money(x.amount)+(x.ref?' · '+x.ref:'')+(cn?' · '+cn:'');
+    if(k==='msales') return (x.model||'Machine')+(x.serial?' · '+x.serial:'')+(cn?' · '+cn:'');
+    if(k==='stock') return x.item||'Item';
+    return ''; }
+  const hash=s=>{ let h=5381; for(let i=0;i<s.length;i++) h=((h<<5)+h+s.charCodeAt(i))|0; return h+':'+s.length; };
+  function take(){ const m={}; COLL.forEach(([k])=>{ const o=new Map(); (DB[k]||[]).forEach(x=>{ const id=keyOf(k,x); if(id!=='') o.set(String(id),{h:hash(JSON.stringify(x)),x}); }); m[k]=o; }); return m; }
+  function log(a,k,ref){ const A=DB.audit, l=A[A.length-1], now=new Date(), u=who(), win=a==='edited'?600000:60000;
+    if(l&&l.a===a&&l.k===k&&l.ref===ref&&l.u===u&&now-new Date(l.t)<win){ l.t=now.toISOString(); if(a!=='edited') l.n=(l.n||1)+1; return; }
+    A.push({t:now.toISOString(),u,a,k,ref}); if(A.length>3000) A.splice(0,A.length-3000); }
+  function run(){ if(!snap||!DB) return; DB.audit=DB.audit||[]; DB.trash=DB.trash||[]; const now=take(), t=new Date().toISOString(), u=who(); let ch=false;
+    COLL.forEach(([k,kind])=>{ const a=snap[k], b=now[k];
+      a.forEach((v,id)=>{ if(!b.has(id)){ DB.trash.push({id:uid(),t,u,coll:k,kind,label:lbl(k,v.x,true),data:JSON.parse(JSON.stringify(v.x))}); log('deleted',kind,lbl(k,v.x)); ch=true; }
+        else if(b.get(id).h!==v.h){ log('edited',kind,lbl(k,b.get(id).x)); ch=true; } });
+      b.forEach((v,id)=>{ if(!a.has(id)){ log('created',kind,lbl(k,v.x)); ch=true; } }); });
+    const lim=Date.now()-90*864e5; DB.trash=DB.trash.filter(x=>new Date(x.t)>lim).slice(-200);
+    snap=take(); if(ch){ try{ syncQueue(); }catch(e){} auditRender(); } }
+  window.auditSoon=function(){ clearTimeout(tmr); tmr=setTimeout(run,300); };
+  window.auditReset=function(){ clearTimeout(tmr); try{ snap=take(); }catch(e){ snap=null; } };
+  const role=()=>{ const m=window.curUser&&window.curUser(); return m?m.role:null; };
+  const when=t=>{ try{ return new Date(t).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}); }catch(e){ return t; } };
+  const CH={created:'#0d9260',edited:'#b7791f',deleted:'#dc2626',restored:'#2f6fed'};
+  window.auditRows=function(){ const el=$('admAudRows'); if(!el) return; const q=(($('aud_q')||{}).value||'').toLowerCase(), f=($('aud_a')||{}).value||'';
+    const rows=(DB.audit||[]).slice().reverse().filter(r=>(!f||r.a===f)&&(!q||(r.u+' '+r.k+' '+r.ref).toLowerCase().includes(q))).slice(0,200);
+    el.innerHTML=rows.length?rows.map(r=>'<tr><td>'+esc(when(r.t))+'</td><td>'+esc(r.u)+'</td><td><b style="color:'+CH[r.a]+'">'+r.a+'</b>'+(r.n>1?' ×'+r.n:'')+'</td><td>'+esc(r.k)+'</td><td>'+esc(r.ref)+'</td></tr>').join(''):'<tr><td colspan="5" class="empty">No matching activity.</td></tr>'; };
+  window.auditRender=function(){ const A=$('admAudit'), T=$('admTrash'); if(!A||!T) return; const r=role();
+    if(r!=='admin'&&r!=='manager'){ A.innerHTML=''; T.innerHTML=''; return; }
+    A.innerHTML='<div class="card pad"><div class="sec" style="margin:0 0 10px"><h2>📜 Audit log</h2><small style="margin-left:auto">Latest 200 of '+(DB.audit||[]).length+' (customers, invoices, sales, quotes, payments, stock)</small></div>'
+      +'<div class="filters" style="margin-bottom:8px"><div class="fg"><label>Search</label><input id="aud_q" placeholder="User, type or reference" oninput="auditRows()"></div><div class="fg"><label>Action</label><select id="aud_a" onchange="auditRows()"><option value="">All</option><option>created</option><option>edited</option><option>deleted</option><option>restored</option></select></div></div>'
+      +'<div class="tw" style="max-height:340px;overflow:auto"><table><thead><tr><th>When</th><th>User</th><th>Action</th><th>Type</th><th>Reference</th></tr></thead><tbody id="admAudRows"></tbody></table></div></div>';
+    auditRows(); const isA=r==='admin', tr=(DB.trash||[]).slice().reverse();
+    T.innerHTML='<div class="card pad"><div class="sec" style="margin:0 0 10px"><h2>♻ Recycle bin</h2><small style="margin-left:auto">Deleted records are kept 90 days (max 200)'+(isA?'':' · only an Admin can restore')+'</small></div>'
+      +(tr.length?'<div class="tw" style="max-height:340px;overflow:auto"><table><thead><tr><th>Deleted</th><th>By</th><th>Type</th><th>Record</th><th></th></tr></thead><tbody>'+tr.map(e=>'<tr><td>'+esc(when(e.t))+'</td><td>'+esc(e.u)+'</td><td>'+esc(e.kind)+'</td><td>'+esc(e.label)+'</td><td style="white-space:nowrap">'+(isA?'<button class="btn ghost sm" onclick="trashRestore(\''+e.id+'\')">Restore</button> <button class="btn ghost sm" onclick="trashPurge(\''+e.id+'\')">Delete forever</button>':'')+'</td></tr>').join('')+'</tbody></table></div>':'<div class="empty">The recycle bin is empty.</div>')+'</div>'; };
+  window.trashRestore=function(id){ const i=(DB.trash||[]).findIndex(x=>x.id===id); if(i<0) return; const e=DB.trash[i], arr=DB[e.coll]; if(!arr) return;
+    const dup=e.coll==='invoices'?arr.some(v=>v.no===e.data.no):arr.some(v=>keyOf(e.coll,v)===keyOf(e.coll,e.data));
+    if(dup){ toast('A record with the same number/ID already exists — cannot restore.',true); return; }
+    arr.push(e.data); DB.trash.splice(i,1); log('restored',e.kind,e.label); snap=take(); save(); try{ renderAll(); }catch(x){} auditRender(); toast('Restored: '+e.label); };
+  window.trashPurge=function(id){ if(role()!=='admin') return; askConfirm('Delete this record forever? It can no longer be restored.',()=>{ DB.trash=(DB.trash||[]).filter(x=>x.id!==id); save(); auditRender(); },'Delete forever'); };
+  auditReset();
 })();
 </script>
 </body></html>
