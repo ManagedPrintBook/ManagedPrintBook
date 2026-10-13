@@ -31,7 +31,7 @@ document.head.appendChild(stl);
 
 /* ---------- generic form modal ---------- */
 function fm(title,fields,onOk,opt){ opt=opt||{}; let ov=g('xaFm'); if(!ov){ ov=document.createElement('div'); ov.className='overlay'; ov.id='xaFm'; document.body.appendChild(ov); }
-  const fld=f=>{ const v=f.val==null?'':f.val; let inp; if(f.type==='select') inp='<select class="xa-in" data-k="'+f.k+'">'+f.opts.map(o=>{ const ov_=Array.isArray(o)?o[0]:o, ol=Array.isArray(o)?o[1]:o; return '<option value="'+esc(ov_)+'"'+(String(ov_)===String(v)?' selected':'')+'>'+esc(ol)+'</option>'; }).join('')+'</select>';
+  const fld=f=>{ if(f.type==='html') return '<div style="flex:1 1 100%;margin-bottom:8px">'+f.html+'</div>'; const v=f.val==null?'':f.val; let inp; if(f.type==='select') inp='<select class="xa-in" data-k="'+f.k+'">'+f.opts.map(o=>{ const ov_=Array.isArray(o)?o[0]:o, ol=Array.isArray(o)?o[1]:o; return '<option value="'+esc(ov_)+'"'+(String(ov_)===String(v)?' selected':'')+'>'+esc(ol)+'</option>'; }).join('')+'</select>';
     else if(f.type==='textarea') inp='<textarea class="xa-in" rows="'+(f.rows||3)+'" data-k="'+f.k+'" placeholder="'+esc(f.ph||'')+'">'+esc(v)+'</textarea>';
     else inp='<input class="xa-in" data-k="'+f.k+'" type="'+(f.type||'text')+'" '+(f.type==='number'?'step="any" ':'')+'value="'+esc(v)+'" placeholder="'+esc(f.ph||'')+'"'+(f.list?' list="'+f.list+'"':'')+'>';
     return '<div style="margin-bottom:8px;'+(f.half?'flex:1 1 45%;':'')+'"><label style="display:block;font-size:.8rem;margin-bottom:3px">'+esc(f.label)+'</label>'+inp+'</div>'; };
@@ -151,37 +151,44 @@ XA.tkCost=function(id){ const t=arr('tickets').find(x=>x.id===id); if(!t) return
 
 /* ---------- Quick Add Contract: customer + contract + ALL machines in one step ---------- */
 const pdate=x=>{ x=String(x||'').trim(); if(!x) return ''; let m=x.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/); if(m) return m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0'); m=x.match(/^(\d{1,2})[-./](\d{1,2})[-./](\d{2}|\d{4})$/); if(!m) return null; const y=m[3].length===2?'20'+m[3]:m[3]; return y+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'); };
-XA.qaOpen=function(cid){ if(!XA.needFin()) return; const cs=DB.customers;
+XA.qaR=[];
+const qaModels=()=>{ const set=new Set(); Object.values(DB.models||{}).forEach(a=>(a||[]).forEach(m=>set.add(m))); DB.customers.forEach(c=>c.machines.forEach(m=>{ if(m.model) set.add(m.model); })); return [...set].sort((a,b)=>a.localeCompare(b)); };
+XA.qaDraw=function(){ const tb=g('qaBody'); if(!tb) return; tb.innerHTML=XA.qaR.map((r,i)=>'<tr><td style="text-align:center;width:40px">'+(i+1)+'</td><td><input class="xa-in" list="xaModelList" style="min-width:170px" value="'+esc(r.model)+'" placeholder="Type to search model…" oninput="XA.qaR['+i+'].model=this.value" onpaste="XA.qaPaste(event,'+i+',0)"></td><td><input class="xa-in" style="min-width:130px" value="'+esc(r.serial)+'" oninput="XA.qaR['+i+'].serial=this.value" onpaste="XA.qaPaste(event,'+i+',1)"></td><td><input class="xa-in" style="min-width:140px" value="'+esc(r.eqid)+'" oninput="XA.qaR['+i+'].eqid=this.value" onpaste="XA.qaPaste(event,'+i+',2)"></td><td><input class="xa-in" style="min-width:110px" value="'+esc(r.start)+'" placeholder="dd-mm-yyyy" oninput="XA.qaR['+i+'].start=this.value" onpaste="XA.qaPaste(event,'+i+',3)"></td><td><button class="btn sm ghost" onclick="XA.qaDel('+i+')">✕</button></td></tr>').join(''); const n=g('qaCount'); if(n) n.textContent=XA.qaR.filter(r=>r.model||r.serial||r.eqid).length; };
+XA.qaAdd=function(n){ for(let i=0;i<(n||1);i++){ const last=XA.qaR[XA.qaR.length-1]; XA.qaR.push({model:last?last.model:'',serial:'',eqid:'',start:''}); } XA.qaDraw(); };
+XA.qaDel=function(i){ XA.qaR.splice(i,1); if(!XA.qaR.length) XA.qaR.push({model:'',serial:'',eqid:'',start:''}); XA.qaDraw(); };
+XA.qaFill=function(){ const m=(XA.qaR.find(r=>r.model)||{}).model||''; XA.qaR.forEach(r=>{ r.model=m; }); XA.qaDraw(); };
+XA.qaPaste=function(e,row,col){ const t=(e.clipboardData||window.clipboardData).getData('text'); if(!/[\t\n]/.test(t.trim())) return; e.preventDefault(); const lines=t.replace(/\r/g,'').split('\n').filter(l=>l.trim()!==''); const keys=['model','serial','eqid','start'];
+  lines.forEach((l,li)=>{ const cells=l.split('\t'); const r=row+li; while(XA.qaR.length<=r) XA.qaR.push({model:'',serial:'',eqid:'',start:''}); cells.forEach((v,ci)=>{ if(col+ci<4) XA.qaR[r][keys[col+ci]]=v.trim(); }); }); XA.qaDraw(); toast(lines.length+' row(s) pasted.'); };
+XA.qaOpen=function(cid){ if(!XA.needFin()) return; const cs=DB.customers; XA.qaR=[{model:'',serial:'',eqid:'',start:''},{model:'',serial:'',eqid:'',start:''}];
+  let dl=g('xaModelList'); if(!dl){ dl=document.createElement('datalist'); dl.id='xaModelList'; document.body.appendChild(dl); } dl.innerHTML=qaModels().map(m=>'<option value="'+esc(m)+'">').join('');
+  const grid='<div style="font-weight:600;font-size:.85rem;margin:4px 0">Machines <span class="xa-hint">(<b id="qaCount">0</b> filled)</span></div><div class="tw"><table class="xa-tbl"><thead><tr><th>Sr.#</th><th>Machine model</th><th>Serial no.</th><th>Equipment ID</th><th>Start date <span class="xa-hint">(optional)</span></th><th></th></tr></thead><tbody id="qaBody"></tbody></table></div><div class="xa-bar" style="margin-top:6px"><button class="btn sm ghost" type="button" onclick="XA.qaAdd(1)">⊕ Add row</button><button class="btn sm ghost" type="button" onclick="XA.qaAdd(5)">⊕ Add 5 rows</button><button class="btn sm ghost" type="button" onclick="XA.qaFill()">⬇ Same model for all rows</button><span class="xa-hint">Tip: copy rows from Excel (Model · Serial · Equip ID · Start date) and paste into the first cell — the grid fills itself.</span></div>';
   fm('⚡ Quick Add Contract + Machines',[
    {k:'cid',label:'Customer',type:'select',opts:[['','➕ New customer (type name below)']].concat(cs.map(c=>[c.id,c.name])),val:cid||''},
    {k:'cname',label:'New customer name (only if “New customer” chosen)',ph:'e.g. Ajman Chamber of Commerce and Industry'},
    {k:'ref',label:'Contract no.',ph:'MT/LC-756/26',half:1},{k:'type',label:'Contract type',type:'select',opts:['Lease','AMC','Rental'],half:1},
    {k:'start',label:'Contract start',type:'date',half:1},{k:'end',label:'Contract end (blank = 1 year)',type:'date',half:1},
-   {k:'brand',label:'Brand + model',ph:'Kyocera TASKalfa 4053ci',half:1},{k:'desc',label:'Invoice wording',ph:'Kyocera Multifunctional A3 Colour Printer',half:1},
-   {k:'dept',label:'Location / department',ph:'Ajman',half:1},{k:'rate',label:'Lease per machine per month (AED)',type:'number',ph:'450',half:1},
-   {k:'cycle',label:'Lease billed',type:'select',opts:['Quarterly','Monthly','Yearly'],half:1},{k:'xcycle',label:'Extra copies billed',type:'select',opts:['Monthly','Quarterly','Yearly'],half:1},
+   {k:'desc',label:'Invoice wording',ph:'Kyocera Multifunctional A3 Colour Printer',half:1},{k:'dept',label:'Location / department',ph:'Ajman',half:1},
+   {k:'rate',label:'Lease per machine per month (AED)',type:'number',ph:'450',half:1},{k:'cycle',label:'Lease billed',type:'select',opts:['Quarterly','Monthly','Yearly'],half:1},
+   {k:'xcycle',label:'Extra copies billed',type:'select',opts:['Monthly','Quarterly','Yearly'],half:1},{k:'one',label:'Invoice layout',type:'select',opts:[['1','ONE line for all machines (7 units × months)'],['0','Standard (grouped by rate)']],half:1},
    {k:'fm',label:'Free mono copies / machine / month',type:'number',ph:'2500',half:1},{k:'fc',label:'Free colour copies / machine / month',type:'number',ph:'2500',half:1},
    {k:'rm',label:'Extra mono rate (AED / copy)',type:'number',ph:'0.035',half:1},{k:'rc',label:'Extra colour rate (AED / copy)',type:'number',ph:'0.18',half:1},
-   {k:'one',label:'Invoice layout',type:'select',opts:[['1','ONE line for all machines — “7 units (450 x 7 = 3150)” × months'],['0','One line per machine rate (standard)']]},
-   {k:'list',label:'Machines — one per line:  Serial no.  ,  Equipment ID  ,  start date (optional)',type:'textarea',rows:8,ph:'RFC9508155, MT-RM-L24-1491\nRFC9509918, MT-RM-L24-1501\nW2N8321246, MT-RM-L26-2092, 08-03-2026'}
+   {k:'_g',type:'html',html:grid}
   ],o=>{
    if(!o.cid&&!o.cname.trim()){ toast('Choose a customer or type the new customer name.',true); return false; }
-   if(!o.brand.trim()){ toast('Enter the brand + model.',true); return false; }
    if(!(num(o.rate)>0)){ toast('Enter the lease amount per machine per month.',true); return false; }
    const st=pdate(o.start); if(st===null){ toast('Contract start date is not valid.',true); return false; }
    const rows=[]; let bad='';
-   o.list.split(/\r?\n/).forEach(l=>{ l=l.trim(); if(!l) return; const p=l.split(/\t|,|;/).map(x=>x.trim()); const sd=pdate(p[2]); if(sd===null) bad=bad||l; rows.push({serial:p[0]||'',eqid:p[1]||'',start:sd||''}); });
-   if(bad){ toast('Date not understood in: '+bad,true); return false; } if(!rows.length){ toast('Paste at least one machine line.',true); return false; }
+   XA.qaR.forEach((r,i)=>{ if(!(r.model||r.serial||r.eqid||r.start).toString().trim()) return; const sd=pdate(r.start); if(sd===null) bad=bad||('row '+(i+1)+' start date'); if(!String(r.model).trim()) bad=bad||('row '+(i+1)+' machine model'); rows.push({model:String(r.model).trim(),serial:String(r.serial).trim(),eqid:String(r.eqid).trim(),start:sd||''}); });
+   if(bad){ toast('Please check '+bad+'.',true); return false; } if(!rows.length){ toast('Add at least one machine row.',true); return false; }
    const have=new Set(); DB.customers.forEach(c=>c.machines.forEach(m=>{ if(m.serial) have.add(m.serial.toLowerCase()); })); const dup=rows.filter(r=>r.serial&&have.has(r.serial.toLowerCase())); const seen=new Set(); const dupIn=rows.filter(r=>{ const k=r.serial.toLowerCase(); if(!k) return false; if(seen.has(k)) return true; seen.add(k); return false; });
    if(dup.length||dupIn.length){ toast('Serial already exists: '+(dup.concat(dupIn)).map(r=>r.serial).slice(0,4).join(', ')+' — fix or remove it.',true); return false; }
    let c=o.cid?custById(o.cid):null; if(!c){ const k0=Object.assign(kBase(),{id:newKid()}); c={id:uid(),name:o.cname.trim(),machines:[],monthlyLease:0,leaseCycle:'Monthly',excessCycle:'Quarterly',leaseFrom:'',leaseTo:'',excessFrom:'',excessTo:'',freeMono:0,freeColor:0,rateMono:0,rateColor:0,contracts:[k0],contract:k0}; DB.customers.push(c); }
    const end=o.end||(st?plusYear(st):''); let k=c.contracts.find(x=>!x.end&&!x.ref&&!c.machines.some(m=>m.contractId===x.id)); if(!k){ k=Object.assign(kBase(),{id:newKid()}); c.contracts.push(k); }
    Object.assign(k,{ref:o.ref.trim()||(c.name+' Contract'),type:o.type,start:st||'',end:end,oneLine:o.one==='1'});
-   const model=o.brand.trim(), brand=model.split(' ')[0];
-   rows.forEach(r=>{ c.machines.push({id:uid(),contractId:k.id,type:'Printer',status:'Active',department:o.dept.trim(),model,serial:r.serial,eqid:r.eqid,desc:o.desc.trim(),remarks:r.start&&r.start!==st?'Lease starts '+fmtDMY(r.start):'',start:r.start||st||'',a3Factor:2,plotUnit:'sqm',freeBasis:'period',freeMono:num(o.fm),freeColor:num(o.fc),rateMono:num(o.rm),rateColor:num(o.rc),freePlot:0,ratePlot:0,rateA0:0,rateA1:0,rateA2:0,readings:[],events:[],
-     monthlyLease:num(o.rate),billM:true,billQ:false,billY:false,priceQ:0,priceY:0,leaseCycle:o.cycle,excessCycle:o.xcycle,leaseFrom:'',leaseTo:'',excessFrom:'',excessTo:''}); });
-   c.contract=c.contracts[0]; addModel({model,brand}); try{ normalizeData(); }catch(e){} save(); renderAll(); if(live()) XA.refresh();
-   toast(rows.length+' machine(s) added to '+c.name+' — contract '+k.ref+'. Now do the Reading Run, then Invoices.'); }, {ok:'Create contract + machines',w:640,note:'Fill this once. Every machine gets the same rate, free copies and invoice wording. A machine that starts later can have its own date as the 3rd column.'}); };
+   rows.forEach(r=>{ c.machines.push({id:uid(),contractId:k.id,type:'Printer',status:'Active',department:o.dept.trim(),model:r.model,serial:r.serial,eqid:r.eqid,desc:o.desc.trim(),remarks:r.start&&r.start!==st?'Lease starts '+fmtDMY(r.start):'',start:r.start||st||'',a3Factor:2,plotUnit:'sqm',freeBasis:'period',freeMono:num(o.fm),freeColor:num(o.fc),rateMono:num(o.rm),rateColor:num(o.rc),freePlot:0,ratePlot:0,rateA0:0,rateA1:0,rateA2:0,readings:[],events:[],
+     monthlyLease:num(o.rate),billM:true,billQ:false,billY:false,priceQ:0,priceY:0,leaseCycle:o.cycle,excessCycle:o.xcycle,leaseFrom:'',leaseTo:'',excessFrom:'',excessTo:''}); addModel({model:r.model,brand:r.model.split(' ')[0]}); });
+   c.contract=c.contracts[0]; try{ normalizeData(); }catch(e){} save(); renderAll(); if(live()) XA.refresh();
+   toast(rows.length+' machine(s) added to '+c.name+' — contract '+k.ref+'. Now do the Reading Run, then Invoices.'); }, {ok:'Create contract + machines',w:860,noFocus:true,note:'Fill this once. Every machine gets the same rate, free copies and invoice wording; model, serial, equipment ID and start date are per machine.'}); XA.qaDraw(); };
 (function(){ const r=document.querySelector('.hdr .right'); if(r&&!g('xaQa')){ const b=document.createElement('button'); b.id='xaQa'; b.className='btn sm'; b.textContent='⚡ Quick Add'; b.title='Add a customer contract with all its machines in one step'; b.onclick=()=>XA.qaOpen(); r.insertBefore(b,r.firstChild); } })();
 
 setTimeout(patchNav,0);
