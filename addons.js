@@ -72,7 +72,7 @@ XA.save=function(){ save(); if(live()) XA.refresh(); };
 
 /* ---------- Customer Details ---------- */
 XA.reg('cd',{render(){ const C=custs(); let h='<div class="sec" style="margin-top:0"><h2>Customer Details</h2></div><div class="hint" style="margin:0 0 8px">Edit the main details in one place. Changes save automatically. Branch drives the branch filter in the header; Sales executive drives targets &amp; commission.</div>';
-  const q=(XA.cdq||'').toLowerCase(); h+='<div class="xa-bar"><input class="xa-in" style="max-width:260px" placeholder="Search customer…" value="'+esc(XA.cdq||'')+'" oninput="XA.cdq=this.value;XA.refresh()"><span class="sp"></span><button class="btn" onclick="openCustomerModal()">+ New Customer</button></div>';
+  const q=(XA.cdq||'').toLowerCase(); h+='<div class="xa-bar"><input class="xa-in" style="max-width:260px" placeholder="Search customer…" value="'+esc(XA.cdq||'')+'" oninput="XA.cdq=this.value;XA.refresh()"><span class="sp"></span><button class="btn" onclick="XA.qaOpen()">⚡ Quick Add Contract + Machines</button> <button class="btn ghost" onclick="openCustomerModal()">+ New Customer</button></div>';
   const rows=C.filter(c=>!q||(c.name+' '+(c.contact||'')+' '+(c.trn||'')+' '+(c.email||'')).toLowerCase().includes(q));
   const inp=(c,f,w,ph)=>'<input class="xa-in" style="min-width:'+(w||110)+'px" value="'+esc(c[f]||'')+'" placeholder="'+(ph||'')+'" onchange="XA.cdSet(\''+c.id+'\',\''+f+'\',this.value)">';
   h+='<div class="card"><div class="tw"><table class="xa-tbl"><thead><tr><th>Customer</th><th>Branch</th><th>Sales executive</th><th>Contact person</th><th>Mobile / WhatsApp</th><th>Email</th><th>TRN</th><th>Terms</th><th>Peppol ID</th><th class="n">Machines</th><th class="n">Balance</th><th></th></tr></thead><tbody>'+(rows.length?rows.map(c=>{ let bal=0; try{ bal=acct(c.id).balance; }catch(e){} return '<tr><td><b>'+esc(c.name)+'</b></td><td><select class="xa-in" style="min-width:80px" onchange="XA.cdSet(\''+c.id+'\',\'branch\',this.value)"><option value="">—</option>'+BR.map(b=>'<option'+(c.branch===b?' selected':'')+'>'+b+'</option>').join('')+'</select></td><td>'+inp(c,'sp',110,'Name')+'</td><td>'+inp(c,'contact',120)+'</td><td>'+inp(c,'tel',120,'+971…')+'</td><td>'+inp(c,'email',150)+'</td><td>'+inp(c,'trn',130,'15 digits')+'</td><td>'+inp(c,'terms',80,'30 days')+'</td><td>'+inp(c,'peppolId',110)+'</td><td class="n">'+(c.machines||[]).length+'</td><td class="n">'+fmtM(bal)+'</td><td><button class="btn sm ghost" onclick="openCustomerModal(\''+c.id+'\')">Full edit</button></td></tr>'; }).join(''):'<tr><td colspan="12" class="empty">No customers.</td></tr>')+'</tbody></table></div></div>'; return h; }});
@@ -147,6 +147,42 @@ const SLA={Urgent:24,High:48,Normal:120,Low:240};
   el.querySelectorAll('tbody tr').forEach(tr=>{ const no=tr.cells[0]&&tr.cells[0].textContent.trim(), t=T.find(x=>x.no===no); if(!t) return; const open=['Open','In progress'].includes(t.st), hrs=(now-new Date(t.date+'T08:00:00').getTime())/36e5, breach=open&&hrs>(SLA[t.pri]||120); if(breach){ late++; tr.cells[0].insertAdjacentHTML('beforeend',' <span title="Past SLA ('+(SLA[t.pri]||120)+'h for '+esc(t.pri)+')" style="color:#b3261e;font-size:.75rem">⏰ SLA</span>'); } const last=tr.cells[tr.cells.length-1]; last.insertAdjacentHTML('beforeend',' <button class="btn sm ghost" title="Parts / labour cost of this ticket" onclick="XA.tkCost(\''+t.id+'\')">💲'+(t.cost?fmtM(t.cost):'Cost')+'</button>'); });
   let b=g('xaTkSla'); if(!b){ b=document.createElement('div'); b.id='xaTkSla'; b.style.cssText='margin:0 0 8px;font-size:.88rem'; el.parentNode.insertBefore(b,el); } const tot=T.reduce((s,t)=>s+num(t.cost),0); b.innerHTML=(late?'<b style="color:#b3261e">⏰ '+late+' open ticket(s) are past their target response time</b> (Urgent 24h · High 48h · Normal 5 days · Low 10 days). ':'<span style="color:#17703a">✔ No open ticket is past its target response time.</span> ')+(tot?' · Total ticket cost logged: <b>'+aed(tot)+'</b>':''); }catch(e){ console.warn(e); } }; })();
 XA.tkCost=function(id){ const t=arr('tickets').find(x=>x.id===id); if(!t) return; fm('Cost of ticket '+t.no,[{k:'cost',label:'Parts + labour cost (AED)',type:'number',val:t.cost||''}],o=>{ t.cost=num(o.cost); save(); if(window.renderTickets) renderTickets(); toast('Cost saved — it now counts in Machine Lifecycle.'); }); };
+
+
+/* ---------- Quick Add Contract: customer + contract + ALL machines in one step ---------- */
+const pdate=x=>{ x=String(x||'').trim(); if(!x) return ''; let m=x.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/); if(m) return m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0'); m=x.match(/^(\d{1,2})[-./](\d{1,2})[-./](\d{2}|\d{4})$/); if(!m) return null; const y=m[3].length===2?'20'+m[3]:m[3]; return y+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'); };
+XA.qaOpen=function(cid){ if(!XA.needFin()) return; const cs=DB.customers;
+  fm('⚡ Quick Add Contract + Machines',[
+   {k:'cid',label:'Customer',type:'select',opts:[['','➕ New customer (type name below)']].concat(cs.map(c=>[c.id,c.name])),val:cid||''},
+   {k:'cname',label:'New customer name (only if “New customer” chosen)',ph:'e.g. Ajman Chamber of Commerce and Industry'},
+   {k:'ref',label:'Contract no.',ph:'MT/LC-756/26',half:1},{k:'type',label:'Contract type',type:'select',opts:['Lease','AMC','Rental'],half:1},
+   {k:'start',label:'Contract start',type:'date',half:1},{k:'end',label:'Contract end (blank = 1 year)',type:'date',half:1},
+   {k:'brand',label:'Brand + model',ph:'Kyocera TASKalfa 4053ci',half:1},{k:'desc',label:'Invoice wording',ph:'Kyocera Multifunctional A3 Colour Printer',half:1},
+   {k:'dept',label:'Location / department',ph:'Ajman',half:1},{k:'rate',label:'Lease per machine per month (AED)',type:'number',ph:'450',half:1},
+   {k:'cycle',label:'Lease billed',type:'select',opts:['Quarterly','Monthly','Yearly'],half:1},{k:'xcycle',label:'Extra copies billed',type:'select',opts:['Monthly','Quarterly','Yearly'],half:1},
+   {k:'fm',label:'Free mono copies / machine / month',type:'number',ph:'2500',half:1},{k:'fc',label:'Free colour copies / machine / month',type:'number',ph:'2500',half:1},
+   {k:'rm',label:'Extra mono rate (AED / copy)',type:'number',ph:'0.035',half:1},{k:'rc',label:'Extra colour rate (AED / copy)',type:'number',ph:'0.18',half:1},
+   {k:'one',label:'Invoice layout',type:'select',opts:[['1','ONE line for all machines — “7 units (450 x 7 = 3150)” × months'],['0','One line per machine rate (standard)']]},
+   {k:'list',label:'Machines — one per line:  Serial no.  ,  Equipment ID  ,  start date (optional)',type:'textarea',rows:8,ph:'RFC9508155, MT-RM-L24-1491\nRFC9509918, MT-RM-L24-1501\nW2N8321246, MT-RM-L26-2092, 08-03-2026'}
+  ],o=>{
+   if(!o.cid&&!o.cname.trim()){ toast('Choose a customer or type the new customer name.',true); return false; }
+   if(!o.brand.trim()){ toast('Enter the brand + model.',true); return false; }
+   if(!(num(o.rate)>0)){ toast('Enter the lease amount per machine per month.',true); return false; }
+   const st=pdate(o.start); if(st===null){ toast('Contract start date is not valid.',true); return false; }
+   const rows=[]; let bad='';
+   o.list.split(/\r?\n/).forEach(l=>{ l=l.trim(); if(!l) return; const p=l.split(/\t|,|;/).map(x=>x.trim()); const sd=pdate(p[2]); if(sd===null) bad=bad||l; rows.push({serial:p[0]||'',eqid:p[1]||'',start:sd||''}); });
+   if(bad){ toast('Date not understood in: '+bad,true); return false; } if(!rows.length){ toast('Paste at least one machine line.',true); return false; }
+   const have=new Set(); DB.customers.forEach(c=>c.machines.forEach(m=>{ if(m.serial) have.add(m.serial.toLowerCase()); })); const dup=rows.filter(r=>r.serial&&have.has(r.serial.toLowerCase())); const seen=new Set(); const dupIn=rows.filter(r=>{ const k=r.serial.toLowerCase(); if(!k) return false; if(seen.has(k)) return true; seen.add(k); return false; });
+   if(dup.length||dupIn.length){ toast('Serial already exists: '+(dup.concat(dupIn)).map(r=>r.serial).slice(0,4).join(', ')+' — fix or remove it.',true); return false; }
+   let c=o.cid?custById(o.cid):null; if(!c){ const k0=Object.assign(kBase(),{id:newKid()}); c={id:uid(),name:o.cname.trim(),machines:[],monthlyLease:0,leaseCycle:'Monthly',excessCycle:'Quarterly',leaseFrom:'',leaseTo:'',excessFrom:'',excessTo:'',freeMono:0,freeColor:0,rateMono:0,rateColor:0,contracts:[k0],contract:k0}; DB.customers.push(c); }
+   const end=o.end||(st?plusYear(st):''); let k=c.contracts.find(x=>!x.end&&!x.ref&&!c.machines.some(m=>m.contractId===x.id)); if(!k){ k=Object.assign(kBase(),{id:newKid()}); c.contracts.push(k); }
+   Object.assign(k,{ref:o.ref.trim()||(c.name+' Contract'),type:o.type,start:st||'',end:end,oneLine:o.one==='1'});
+   const model=o.brand.trim(), brand=model.split(' ')[0];
+   rows.forEach(r=>{ c.machines.push({id:uid(),contractId:k.id,type:'Printer',status:'Active',department:o.dept.trim(),model,serial:r.serial,eqid:r.eqid,desc:o.desc.trim(),remarks:r.start&&r.start!==st?'Lease starts '+fmtDMY(r.start):'',start:r.start||st||'',a3Factor:2,plotUnit:'sqm',freeBasis:'period',freeMono:num(o.fm),freeColor:num(o.fc),rateMono:num(o.rm),rateColor:num(o.rc),freePlot:0,ratePlot:0,rateA0:0,rateA1:0,rateA2:0,readings:[],events:[],
+     monthlyLease:num(o.rate),billM:true,billQ:false,billY:false,priceQ:0,priceY:0,leaseCycle:o.cycle,excessCycle:o.xcycle,leaseFrom:'',leaseTo:'',excessFrom:'',excessTo:''}); });
+   c.contract=c.contracts[0]; addModel({model,brand}); try{ normalizeData(); }catch(e){} save(); renderAll(); if(live()) XA.refresh();
+   toast(rows.length+' machine(s) added to '+c.name+' — contract '+k.ref+'. Now do the Reading Run, then Invoices.'); }, {ok:'Create contract + machines',w:640,note:'Fill this once. Every machine gets the same rate, free copies and invoice wording. A machine that starts later can have its own date as the 3rd column.'}); };
+(function(){ const r=document.querySelector('.hdr .right'); if(r&&!g('xaQa')){ const b=document.createElement('button'); b.id='xaQa'; b.className='btn sm'; b.textContent='⚡ Quick Add'; b.title='Add a customer contract with all its machines in one step'; b.onclick=()=>XA.qaOpen(); r.insertBefore(b,r.firstChild); } })();
 
 setTimeout(patchNav,0);
 document.addEventListener('DOMContentLoaded',()=>{});
