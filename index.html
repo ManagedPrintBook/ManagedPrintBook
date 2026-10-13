@@ -2693,4 +2693,5 @@ document.addEventListener('click',e=>{ if(!e.target.closest('.bellwrap')) closeB
   window.slEdit=function(id){ _edit.apply(this,arguments); const s=DB.sales.find(x=>x.id===id); try{ if(!s||s.inv){ box().innerHTML=''; fill(s); } else { fill(null); slLegMode('add'); } }catch(e){} };
 })();
 </script>
+<script src="/addons.js"></script><script src="/addons2.js"></script>
 </body></html>

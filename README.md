@@ -10,3 +10,12 @@ Never commit customer exports (CSV/backup files) — they are git-ignored.
 
 ## Cloud sync (Supabase)
 Email + password login; the whole app database is saved to `public.app_state` (one row per user, protected by row-level security) a couple of seconds after every change. "Work offline" skips sync. In Supabase → Authentication → Providers → Email you can switch off "Confirm email" for instant sign-up. 
+
+## Add-on modules (addons.js, addons2.js)
+Customer Details, Delivery Notes + warranty/AMC certificates, Machine Lifecycle, Toner Alerts, Renewal Pipeline, Targets & Commission,
+Cash-Flow Forecast, Send Reminders (WhatsApp/email), e-Invoicing Readiness, Suppliers (details, purchase bills, part price finder with
+lowest-price suggestion, expenses & P&L), branch filter (DXB/SHJ/AUH) and service-ticket SLA/cost.
+
+### Customer portal (one-time setup)
+Run `supabase/portal.sql` in Supabase → SQL Editor. Then Customers → Customer Portal → "Create link" per customer.
+Customers open `/portal?t=…` (no login) to send readings, request toner, log problems and see invoices/balance; you accept items from the Inbox.
