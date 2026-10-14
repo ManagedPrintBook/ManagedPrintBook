@@ -1770,11 +1770,7 @@ function exportExcel(){
 }
 const gv=(row,...ks)=>{ for(const k of ks){ if(row[k]!==undefined&&row[k]!=='') return row[k]; } return undefined; };
 const gn=(row,...ks)=>{ const v=gv(row,...ks); const n=parseFloat(v); return Number.isFinite(n)?n:undefined; };
-function importExcel(evt){
-  if(typeof XLSX==='undefined'){ toast('Excel library did not load (no internet?).',true); evt.target.value=''; return; }
-  const file=evt.target.files[0]; if(!file) return; const rd=new FileReader();
-  rd.onload=e=>{ try{
-    const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array',cellDates:true});
+function importWbApply(wb,fname){
     if(wb.Sheets['Customers']){
       const sh=n=>wb.Sheets[n]?XLSX.utils.sheet_to_json(wb.Sheets[n],{defval:''}):[];
       sh('Customers').forEach(r=>{ const name=gv(r,'Customer Name'); if(!name) return; let c=DB.customers.find(x=>x.name===name); if(!c){ c={id:uid(),name,machines:[]}; DB.customers.push(c); }
@@ -1793,7 +1789,14 @@ function importExcel(evt){
       sh('Ledger').forEach(r=>{ const c=DB.customers.find(x=>x.name===gv(r,'Customer Name')); const amt=gn(r,'Amount'); if(!c||!amt) return; const d=gv(r,'Date'); const date=d instanceof Date?d.toISOString().slice(0,10):String(d||todayISO());
         if(DB.ledger.some(l=>l.cid===c.id&&l.date===date&&l.amount===amt&&l.type===gv(r,'Type')&&(l.ref||'')===String(gv(r,'Reference')||''))) return; DB.ledger.push({id:uid(),cid:c.id,date,type:gv(r,'Type')||'payment',amount:amt,method:gv(r,'Method')||'',ref:String(gv(r,'Reference')||''),note:String(gv(r,'Note')||'')}); });
       normalizeData(); save(); renderAll(); toast('Import complete.');
-    } else importRawSheet(wb,file.name);
+    } else importRawSheet(wb,fname);
+}
+function importExcel(evt){
+  if(typeof XLSX==='undefined'){ toast('Excel library did not load (no internet?).',true); evt.target.value=''; return; }
+  const file=evt.target.files[0]; if(!file) return; const rd=new FileReader();
+  rd.onload=e=>{ try{ const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array',cellDates:true});
+    const go=()=>{ try{ importWbApply(wb,file.name); }catch(err){ toast('Could not read this file: '+err.message,true); } };
+    if(window.XA&&XA.importGate) XA.importGate(wb,file.name,go); else go();
   }catch(err){ toast('Could not read this file: '+err.message,true); } evt.target.value=''; };
   rd.readAsArrayBuffer(file);
 }
@@ -2239,7 +2242,7 @@ function siRender(){ if(!window.siInit) siMonth(); slOpt($('si_cust'),true); con
   const k=(l,v,s)=>'<div class="card kpi"><span>'+l+'</span><b>'+v+'</b><small>'+s+'</small></div>';
   $('siKpi').innerHTML='<div class="kpis">'+k('Invoices',rows.length,'in this period')+k('Sales (excl. VAT)','AED '+fmtM(rpSum(rows.map(r=>r.net))),'')+k('VAT','AED '+fmtM(rpSum(rows.map(r=>r.vat))),'')+k('Total','AED '+fmtM(rpSum(rows.map(r=>r.amt))),'incl. VAT')+'</div>';
   $('siTable').innerHTML=rows.length?'<table><thead><tr><th>Date</th><th>Invoice#</th><th>Customer Name</th><th>Items</th><th>Ref</th><th class="n">Amount</th><th></th></tr></thead><tbody>'+rows.map(r=>'<tr><td>'+fmtDMY(r.date)+'</td><td><a href="#" onclick="siView(\''+esc(r.no)+'\');return false" style="color:var(--blue);font-weight:600;text-decoration:none">'+esc(r.leg?'Old record':r.no)+'</a>'+(r.leg?'<div class="hint" style="margin:0">no number · no VAT</div>':'')+'</td><td><a href="#" onclick="slHist(\''+r.cid+'\');return false" style="color:var(--text);text-decoration:none">'+esc(cn(r.cid))+'</a></td><td>'+esc(r.items[0]||'')+(r.items.length>1?' <span class="hint">+'+(r.items.length-1)+' more</span>':'')+'</td><td>'+esc(r.ref==='Others'&&r.note?'Others: '+r.note:r.ref)+'</td><td class="n">AED'+fmtM(r.amt)+'</td><td style="white-space:nowrap"><button class="btn sm ghost" onclick="siView(\''+esc(r.no)+'\')">View</button> <button class="btn sm ghost" onclick="slEdit(\''+r.id+'\')">✎ Edit</button> <button class="btn sm ghost" onclick="siDel(\''+esc(r.no)+'\')">🗑 Delete</button></td></tr>').join('')+'</tbody></table>':'<div class="empty">No sales invoices in this period. Click “+ New Sales Invoice”.</div>'; }
-function siView(no){ const f=siRows(no)[0]; if(!f) return; dvOpen(String(no).charAt(0)==='~'?'Old sales record — no invoice number / VAT':'Invoice '+no,siDocHtml(no),'<button class="btn ghost" onclick="dvClose();slEdit(\''+f.id+'\')">'+(String(no).charAt(0)==='~'?'✎ Edit — add VAT &amp; number':'✎ Edit')+'</button><button class="btn ghost" onclick="dvClose();siDel(\''+esc(no)+'\')">🗑 Delete</button><button class="btn ghost" onclick="siWA(\''+esc(no)+'\')">WhatsApp</button><button class="btn ghost" onclick="siMail(\''+esc(no)+'\')">✉ Email</button><button class="btn" onclick="dvPrint()">🖨 Print / Save as PDF</button>'); }
+function siView(no){ const f=siRows(no)[0]; if(!f) return; dvOpen(String(no).charAt(0)==='~'?'Old sales record — no invoice number / VAT':'Invoice '+no,siDocHtml(no),'<button class="btn ghost" onclick="dvClose();slEdit(\''+f.id+'\')">'+(String(no).charAt(0)==='~'?'✎ Edit — add VAT &amp; number':'✎ Edit')+'</button><button class="btn ghost" onclick="dvClose();siDel(\''+esc(no)+'\')">🗑 Delete</button><button class="btn ghost" onclick="XA.dnForInv(\''+esc(no)+'\')">🚚 Delivery Note</button><button class="btn ghost" onclick="siWA(\''+esc(no)+'\')">WhatsApp</button><button class="btn ghost" onclick="siMail(\''+esc(no)+'\')">✉ Email</button><button class="btn" onclick="dvPrint()">🖨 Print / Save as PDF</button>'); }
 function siWA(no){ const f=siRows(no)[0], t=rpSum(siRows(no).map(x=>x.amount)); slSend(f.cid,'Dear '+cn(f.cid)+',\n\nPlease find invoice '+no+' for AED '+fmtM(t)+'.\n\nBest regards,\n'+((DB.company||{}).name||''),'i:'+no); }
 function siMail(no){ const f=siRows(no)[0], c=custById(f.cid)||{}, t=rpSum(siRows(no).map(x=>x.amount)); location.href='mailto:'+encodeURIComponent(c.email||'')+'?subject='+encodeURIComponent('Invoice '+no)+'&body='+encodeURIComponent('Dear '+(c.name||'')+',\n\nPlease find invoice '+no+' for AED '+fmtM(t)+'.\n\nBest regards,\n'+((DB.company||{}).name||'')); }
 function siDel(no){ askConfirm('Delete '+(String(no).charAt(0)==='~'?'this old sales record':'sales invoice '+no)+'? It can be restored from Admin → Recycle bin.',()=>{ DB.sales=DB.sales.filter(x=>String(no).charAt(0)==='~'?x.id!==String(no).slice(1):x.inv!==no); save(); renderSales(); renderBell(); renderInvoices(); toast('Invoice deleted.'); }); }
@@ -2694,5 +2697,5 @@ document.addEventListener('click',e=>{ if(!e.target.closest('.bellwrap')) closeB
   window.slEdit=function(id){ _edit.apply(this,arguments); const s=DB.sales.find(x=>x.id===id); try{ if(!s||s.inv){ box().innerHTML=''; fill(s); } else { fill(null); slLegMode('add'); } }catch(e){} };
 })();
 </script>
-<script src="/addons.js"></script><script src="/addons2.js"></script>
+<script src="/addons.js"></script><script src="/addons2.js"></script><script src="/security.js"></script>
 </body></html>
