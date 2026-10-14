@@ -9,6 +9,7 @@ const arr=k=>(DB[k]=DB[k]||[]);
 const BR=['DXB','SHJ','AUH'];
 const XA=window.XA={views:{},BRF:'',cur:'cd'};
 const FIN=['sup','pur','parts','exp','tgt','cash','einv'];
+XA.FIN=FIN;
 const custs=XA.custs=()=>DB.customers.filter(c=>!XA.BRF||(c.branch||'')===XA.BRF);
 const cname=XA.cname=id=>{ const c=custById(id); return c?c.name:'(deleted)'; };
 const sname=XA.sname=id=>{ const s=arr('suppliers').find(x=>x.id===id); return s?s.name:'(deleted)'; };
@@ -45,7 +46,7 @@ XA.print=function(html){ const w=window.open('','_blank'); if(!w){ toast('Allow 
 XA.coHead=function(title,no){ const co=DB.company||{}; return '<div class="hd"><div>'+(window.LOGO?'<img src="'+LOGO+'"><br>':'')+'<b>'+esc(co.name||'')+'</b><div class="mut">'+esc(co.addr||'')+'<br>'+esc(co.phone||'')+' · '+esc(co.email||'')+(co.trn?'<br>TRN: '+esc(co.trn):'')+'</div></div><div style="text-align:right"><h1>'+esc(title)+'</h1>'+(no?'<b>'+esc(no)+'</b>':'')+'</div></div>'; };
 
 /* ---------- router + nav ---------- */
-const nav=[['Customers',[['Customer Details','cd'],['Customer Portal','portal']]],['Contracts',[['Machine Lifecycle','life'],['Toner Alerts','toner']]],['Sales',[['Delivery Notes','dn'],['Targets & Commission','tgt'],['Renewal Pipeline','pipe']]],['Accounts',[['Cash-Flow Forecast','cash'],['Send Reminders','rem'],['e-Invoicing Readiness','einv']]]];
+const nav=[['Customers',[['Customer Details','cd'],['Customer Portal','portal']]],['Contracts',[['Machine Lifecycle','life'],['Toner Alerts','toner'],['FOC Monitor','foc']]],['Sales',[['Delivery Notes','dn'],['Targets & Commission','tgt'],['Renewal Pipeline','pipe']]],['Accounts',[['Cash-Flow Forecast','cash'],['Send Reminders','rem'],['e-Invoicing Readiness','einv']]]];
 function patchNav(){ if(typeof SD==='undefined'||SD.__xa) return; SD.__xa=1;
   nav.forEach(([grp,items])=>{ const G=SD.find(x=>x.g===grp); if(G) items.forEach(it=>G.items.push([it[0],'xa',it[1]])); });
   const ai=SD.findIndex(x=>x.g==='Accounts'); SD.splice(ai<0?SD.length:ai,0,{g:'Suppliers',i:'🏭',items:[['Supplier Details','xa','sup'],['Purchase Bills','xa','pur'],['Part Price Finder','xa','parts'],['Expenses & P&L','xa','exp']]});
@@ -170,6 +171,7 @@ XA.qaOpen=function(cid){ if(!XA.needFin()) return; const cs=DB.customers; XA.qaR
    {k:'desc',label:'Invoice wording',ph:'Kyocera Multifunctional A3 Colour Printer'},
    {k:'rate',label:'Lease per machine per month (AED)',type:'number',ph:'450',half:1},{k:'cycle',label:'Lease billed',type:'select',opts:['Quarterly','Monthly','Yearly'],half:1},
    {k:'xcycle',label:'Extra copies billed',type:'select',opts:['Monthly','Quarterly','Yearly'],half:1},{k:'one',label:'Invoice layout',type:'select',opts:[['1','ONE line for all machines (7 units × months)'],['0','Standard (grouped by rate)']],half:1},
+   {k:'fu',label:'Free copies',type:'select',opts:[['0','A fixed number per machine / month'],['1','Unlimited free copies']],half:1},{k:'xu',label:'Excess copies',type:'select',opts:[['0','Charged at the rate below'],['1','Unlimited — no excess charge']],half:1},
    {k:'fm',label:'Free mono copies / machine / month',type:'number',ph:'2500',half:1},{k:'fc',label:'Free colour copies / machine / month',type:'number',ph:'2500',half:1},
    {k:'rm',label:'Extra mono rate (AED / copy)',type:'number',ph:'0.035',half:1},{k:'rc',label:'Extra colour rate (AED / copy)',type:'number',ph:'0.18',half:1},
    {k:'_g',type:'html',html:grid}
@@ -185,7 +187,7 @@ XA.qaOpen=function(cid){ if(!XA.needFin()) return; const cs=DB.customers; XA.qaR
    let c=o.cid?custById(o.cid):null; if(!c){ const k0=Object.assign(kBase(),{id:newKid()}); c={id:uid(),name:o.cname.trim(),machines:[],monthlyLease:0,leaseCycle:'Monthly',excessCycle:'Quarterly',leaseFrom:'',leaseTo:'',excessFrom:'',excessTo:'',freeMono:0,freeColor:0,rateMono:0,rateColor:0,contracts:[k0],contract:k0}; DB.customers.push(c); }
    const end=o.end||(st?plusYear(st):''); let k=c.contracts.find(x=>!x.end&&!x.ref&&!c.machines.some(m=>m.contractId===x.id)); if(!k){ k=Object.assign(kBase(),{id:newKid()}); c.contracts.push(k); }
    Object.assign(k,{ref:o.ref.trim()||(c.name+' Contract'),type:o.type,start:st||'',end:end,oneLine:o.one==='1'});
-   rows.forEach(r=>{ c.machines.push({id:uid(),contractId:k.id,type:'Printer',status:'Active',department:r.dept,model:r.model,serial:r.serial,eqid:r.eqid,desc:o.desc.trim(),remarks:r.start&&r.start!==st?'Lease starts '+fmtDMY(r.start):'',start:r.start||st||'',a3Factor:2,plotUnit:'sqm',freeBasis:'period',freeMono:num(o.fm),freeColor:num(o.fc),rateMono:num(o.rm),rateColor:num(o.rc),freePlot:0,ratePlot:0,rateA0:0,rateA1:0,rateA2:0,readings:[],events:[],
+   const UNLQ=o.fu==='1'||o.xu==='1'; rows.forEach(r=>{ c.machines.push({id:uid(),contractId:k.id,type:'Printer',status:'Active',department:r.dept,model:r.model,serial:r.serial,eqid:r.eqid,desc:o.desc.trim(),remarks:r.start&&r.start!==st?'Lease starts '+fmtDMY(r.start):'',start:r.start||st||'',a3Factor:2,plotUnit:'sqm',freeBasis:'period',freeMono:UNLQ?1e9:num(o.fm),freeColor:UNLQ?1e9:num(o.fc),rateMono:o.xu==='1'?0:num(o.rm),rateColor:o.xu==='1'?0:num(o.rc),freePlot:0,ratePlot:0,rateA0:0,rateA1:0,rateA2:0,readings:[],events:[],
      monthlyLease:num(o.rate),billM:true,billQ:false,billY:false,priceQ:0,priceY:0,leaseCycle:o.cycle,excessCycle:o.xcycle,leaseFrom:'',leaseTo:'',excessFrom:'',excessTo:''}); addModel({model:r.model,brand:r.model.split(' ')[0]}); });
    c.contract=c.contracts[0]; try{ normalizeData(); }catch(e){} save(); renderAll(); if(live()) XA.refresh();
    toast(rows.length+' machine(s) added to '+c.name+' — contract '+k.ref+'. Now do the Reading Run, then Invoices.'); }, {ok:'Create contract + machines',w:860,noFocus:true,note:'Fill this once. Every machine gets the same rate, free copies and invoice wording; model, serial, equipment ID and start date are per machine.'}); XA.qaDraw(); };

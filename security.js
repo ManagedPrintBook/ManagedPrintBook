@@ -4,7 +4,7 @@
 const XA=window.XA; if(!XA) return;
 const SB_URL='https://zaogpwfobqvayeejfvxc.supabase.co', SB_KEY='sb_publishable_NWe7FFqt7_C0qOOZoqvsFQ_tH9qBCty';
 const g=id=>document.getElementById(id);
-const IDLE_MS=60*1000, AWAY_MS=5*1000;
+const IDLE_MS=60*1000, AWAY_MS=2*60*1000;
 const legacyInit=window.lockInit;
 let mode='unknown', locked=false, idleT=null, awayAt=0, lastAct=Date.now(), busy=false;
 const me=()=>window.curUser&&window.curUser();
@@ -23,8 +23,8 @@ window.lockNow=lock;
 
 /* ---- triggers: idle, switching tab/window, reload ---- */
 ['mousemove','mousedown','keydown','touchstart','scroll','click'].forEach(e=>document.addEventListener(e,()=>{ if(!locked) lastAct=Date.now(); },{passive:true}));
-setInterval(()=>{ if(mode==='on'&&!locked&&me()&&Date.now()-lastAct>=IDLE_MS) lock(); },5000);
-document.addEventListener('visibilitychange',()=>{ if(document.hidden){ awayAt=Date.now(); return; } if(mode==='on'&&!locked&&me()&&awayAt&&Date.now()-awayAt>=AWAY_MS) lock(); awayAt=0; });
+setInterval(()=>{ if(document.hidden) return; if(mode==='on'&&!locked&&me()&&Date.now()-lastAct>=IDLE_MS) lock(); },5000);
+document.addEventListener('visibilitychange',()=>{ if(document.hidden){ awayAt=Date.now(); return; } if(mode==='on'&&!locked&&me()&&awayAt&&Date.now()-awayAt>=AWAY_MS) lock(); else if(!locked) lastAct=Date.now(); awayAt=0; });
 window.addEventListener('pagehide',()=>{ try{ if(mode==='on'&&me()) sessionStorage.setItem('plc_locked','1'); }catch(e){} });
 const ca=window.cloudAuth; if(typeof ca==='function') window.cloudAuth=function(){ try{ sessionStorage.removeItem('plc_locked'); }catch(e){} return ca.apply(this,arguments); };
 
@@ -39,5 +39,5 @@ window.lockInit=async function(){ clearTimeout(idleT); let st; try{ st=await rpc
   mode='off'; const u=me(); if(u&&u.role==='admin') askKey('Set the secure key (one time)',false); else toast('The admin has not set the secure key yet. Ask the admin to sign in once.',true); };
 window.lockChange=function(){ askKey('Change secure key',true); };
 window.admSecurity=function(isA){ const el=g('admSec'); if(!el) return; if(!isA){ el.innerHTML=''; return; }
-  el.innerHTML='<div class="card pad"><div class="sec" style="margin:0 0 10px"><h2>🔒 Security — secure key</h2><span style="margin-left:auto" class="badge '+(mode==='on'?'good':'warn')+'">'+(mode==='on'?'ON':'NOT SET UP')+'</span></div><div class="hint" style="margin:0 0 12px">One company-wide key, set only by the admin and checked on the server. The app asks for it after 1 minute idle, when you come back from another tab or window, and after a page reload. Closing the browser tab signs you out completely (email + password needed).</div>'+(mode==='on'?'<button class="btn" onclick="lockChange()">Change secure key</button> <button class="btn ghost" onclick="lockNow()">Lock now</button>':'<div class="hint">Run <code>supabase/security.sql</code> in the Supabase SQL Editor, then sign in again to set the key.</div>')+'</div>'; };
+  el.innerHTML='<div class="card pad"><div class="sec" style="margin:0 0 10px"><h2>🔒 Security — secure key</h2><span style="margin-left:auto" class="badge '+(mode==='on'?'good':'warn')+'">'+(mode==='on'?'ON':'NOT SET UP')+'</span></div><div class="hint" style="margin:0 0 12px">One company-wide key, set only by the admin and checked on the server. The app asks for it after 1 minute idle, when you come back from another tab or window after more than 2 minutes away, and after a page reload. Closing the browser tab signs you out completely (email + password needed).</div>'+(mode==='on'?'<button class="btn" onclick="lockChange()">Change secure key</button> <button class="btn ghost" onclick="lockNow()">Lock now</button>':'<div class="hint">Run <code>supabase/security.sql</code> in the Supabase SQL Editor, then sign in again to set the key.</div>')+'</div>'; };
 })();

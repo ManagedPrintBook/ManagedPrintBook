@@ -23,5 +23,5 @@ Customers open `/portal?t=…` (no login) to send readings, request toner, log p
 ### Secure key v2 (one-time setup)
 Run `supabase/security.sql` in Supabase → SQL Editor. The admin then sets ONE company-wide key (6–8 digits) at next sign-in.
 It is stored hashed on the server, checked on the server, and wrong tries are limited (5 tries, then 5-minute lock). Staff can only enter it, never set it.
-The app locks after 1 minute idle, when you return from another tab/window (5 s+), and after a page reload. Closing the tab signs out completely.
+The app locks after 1 minute idle, when you return from another tab/window after more than 2 minutes, and after a page reload. Closing the tab signs out completely.
 Forgot the key? SQL Editor: `delete from public.app_security;`

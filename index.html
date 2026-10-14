@@ -556,7 +556,7 @@ function restoreJSON(evt){
 const uid=()=>Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-3);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const round2=x=>Math.round((x+Number.EPSILON)*100)/100;
-const fmtN=n=>Number(n||0).toLocaleString('en-US',{maximumFractionDigits:2});
+const fmtN=n=>Number(n||0)>=1e9?'Unlimited':Number(n||0).toLocaleString('en-US',{maximumFractionDigits:2});
 const fmtM=n=>Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 function fmtRate(x){ x=+x||0; let t=x.toFixed(4).replace(/0+$/,''); if(/\.\d?$/.test(t)) t=x.toFixed(2); return t; }
 function todayISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
@@ -2697,5 +2697,5 @@ document.addEventListener('click',e=>{ if(!e.target.closest('.bellwrap')) closeB
   window.slEdit=function(id){ _edit.apply(this,arguments); const s=DB.sales.find(x=>x.id===id); try{ if(!s||s.inv){ box().innerHTML=''; fill(s); } else { fill(null); slLegMode('add'); } }catch(e){} };
 })();
 </script>
-<script src="/addons.js"></script><script src="/addons2.js"></script><script src="/security.js"></script>
+<script src="/addons.js"></script><script src="/addons2.js"></script><script src="/addons3.js"></script><script src="/security.js"></script>
 </body></html>
