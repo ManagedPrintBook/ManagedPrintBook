@@ -37,6 +37,24 @@
      "value": "frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
     }
    ]
+  },
+  {
+   "source": "/(.*)\\.(js|html)",
+   "headers": [
+    {
+     "key": "Cache-Control",
+     "value": "no-cache, must-revalidate"
+    }
+   ]
+  },
+  {
+   "source": "/",
+   "headers": [
+    {
+     "key": "Cache-Control",
+     "value": "no-cache, must-revalidate"
+    }
+   ]
   }
  ]
 }
