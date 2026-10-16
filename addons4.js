@@ -99,7 +99,7 @@ function injectTpl(){ const t=g('q_terms'); if(!t||g('q_tpl')) return; const s=d
 setInterval(injectTpl,1500);
 
 /* ---------- menu ---------- */
-function patch(){ if(typeof SD==='undefined'||SD.__xa4||!SD.__xa) return; SD.__xa4=1; const add=(grp,items)=>{ const G=SD.find(x=>x.g===grp); if(G) items.forEach(it=>G.items.push([it[0],'xa',it[1]])); };
+function patch(){ if(typeof SD==='undefined'||SD.__xa4||!SD.__xa) return; SD.__xa4=1; if(SD[0]&&SD[0].g!=='Home') SD.unshift({g:'Home',i:'🏠',items:[['Home','xa','home']]}); const add=(grp,items)=>{ const G=SD.find(x=>x.g===grp); if(G) items.forEach(it=>G.items.push([it[0],'xa',it[1]])); };
  add('Accounts',[['Dashboard (management)','dash2'],['Collections follow-up','coll'],['PDC Tracker','pdc'],['Security Deposits','dep'],['Owner Report','owner']]);
  add('Contracts',[['Agreements & Signatures','agr'],['Contract Templates','tpl'],['Technician Schedule','sched'],['Engineer Visits','visits'],['Meter Reading from WhatsApp','wamr']]); sdBuild(); try{ sdSync('customers'); }catch(e){} }
 setInterval(patch,800);
@@ -128,4 +128,21 @@ XA.agView=id=>{ const a=AG().find(x=>x.id===id); if(!a) return; dvOpen('Agreemen
 XA.agSign=(id,co)=>{ const a=AG().find(x=>x.id===id); if(!a) return; if(/\[_{2,}[^\]]*\]/.test(a.text)&&!confirm('Some blanks [___] are still not filled in. Sign anyway?')) return; XA.signPad((co?'Company':'Customer')+' signature — '+a.no,r=>{ if(co){ a.csig=r.sig; a.cby=r.name; a.cat=r.at; } else { a.sig=r.sig; a.sigBy=r.name; a.sigAt=r.at; } save(); XA.agView(id); toast('Signature saved.'); },co?((DB.company||{}).salesPerson||''):''); };
 XA.agDel=id=>askConfirm('Delete this agreement?',()=>{ DB.agreements=AG().filter(x=>x.id!==id); XA.save(); });
 XA.FIN.push('agr');
+
+/* ---------- Home: day-by-day updates (like Zoho Books) ---------- */
+XA._hd=14;
+XA.reg('home',{render(){ const u=window.curUser&&window.curUser(), fin=!(u&&u.role==='sales'), t=today(), from=addDays(t,-XA._hd), ev=[];
+ const add=(d,ic,txt,amt)=>{ d=String(d||'').slice(0,10); if(d>=from&&d<=t) ev.push({d,ic,txt,amt}); };
+ arr('invoices').forEach(i=>{ if(fin) add(i.date,'🧾','Invoice <b>'+esc(i.no)+'</b> created for '+esc(i.cname||cn(i.cid)),i.total); });
+ arr('ledger').forEach(l=>{ if(fin&&l.type==='payment') add(l.date,'💰','Payment received from '+esc(cn(l.cid))+(l.ref?' · '+esc(l.ref):''),l.amount); });
+ arr('quotes').forEach(q=>add(q.date||q.created,'📝','Quote <b>'+esc(q.no||'')+'</b> for '+esc(cn(q.cid))+(q.sig?' — signed by customer':''),fin?(q.total||null):null));
+ arr('dnotes').forEach(d=>add(d.date,'🚚',esc(d.type||'Delivery')+' note <b>'+esc(d.no||'')+'</b> — '+esc(cn(d.cid))));
+ arr('tickets').forEach(x=>{ add(x.date||x.created||x.opened,'🛠','Service ticket <b>'+esc(x.no||'')+'</b> — '+esc(cn(x.cid))+' ('+esc(x.st||'Open')+')'); (x.visits||[]).forEach(v=>add(v.at,'📍','Engineer visit on '+esc(x.no||'')+(v.by?' by '+esc(v.by):'')+(v.sig?' — customer signed':''))); });
+ if(fin){ arr('deposits').forEach(d=>add(d.date,'🏦','Security deposit received from '+esc(cn(d.cid)),d.amt)); arr('pdcs').forEach(p=>{ if(p.date>=from&&p.date<=t&&(p.st==='Received'||p.st==='Deposited')) add(p.date,'🧾','Cheque '+esc(p.no)+' from '+esc(cn(p.cid))+' is due',p.amt); }); arr('follow').forEach(f=>add(f.at,'📞','Follow-up with '+esc(cn(f.cid))+': '+esc(f.note))); }
+ arr('agreements').forEach(a=>add(a.date,'📄','Agreement <b>'+esc(a.no)+'</b> — '+esc(cn(a.cid))+(a.sig?' (signed)':'')));
+ const days={}; ev.slice().reverse().forEach(e=>{ (days[e.d]=days[e.d]||[]).push(e); });
+ const lab=d=>d===t?'Today':d===addDays(t,-1)?'Yesterday':new Date(d+'T00:00:00Z').toLocaleDateString('en-GB',{weekday:'long',timeZone:'UTC'}), keys=Object.keys(days).sort().reverse();
+ const A=fin?DB.customers.map(c=>acct(c.id)):[], head=fin?kpis(kpi('Receivable',aed(A.reduce((x,a)=>x+Math.max(0,a.balance),0)),'')+kpi('Overdue',aed(A.reduce((x,a)=>x+a.overdue,0)),'')+kpi('Open tickets',arr('tickets').filter(x=>!['Resolved','Closed'].includes(x.st)).length,'')+kpi('Cheques due 7 days',arr('pdcs').filter(p=>(p.st==='Received'||p.st==='Deposited')&&p.date<=addDays(t,7)).length,'')):'';
+ return H('Home — latest updates')+head+(keys.length?keys.map(d=>'<div class="card pad" style="margin-top:12px"><b>'+lab(d)+'</b> <span class="xa-hint">'+fmtDMY(d)+'</span>'+days[d].map(e=>'<div style="display:flex;gap:10px;padding:7px 0;border-top:1px solid #eef1f6"><span>'+e.ic+'</span><span style="flex:1">'+e.txt+'</span>'+(e.amt?'<b>AED '+fmtM(num(e.amt))+'</b>':'')+'</div>').join('')+'</div>').join(''):'<div class="card pad" style="margin-top:12px"><div class="empty">No updates in the last '+XA._hd+' days.</div></div>')+'<div style="text-align:center;margin:14px"><button class="btn sm ghost" onclick="XA._hd+=14;XA.refresh()">Show 14 more days</button></div>'; }});
+const _sdb=window.sdBuild; if(_sdb) window.sdBuild=function(){ _sdb.apply(this,arguments); if(!SD[0]||SD[0].g!=='Home') return; const n=document.querySelector('#nav .nv[data-g="0"]'); if(!n) return; const b=n.querySelector('.ng'); b.innerHTML='🏠 Home'; b.onclick=function(e){ if(e) e.stopPropagation(); go('xa','home'); }; const d=n.querySelector('.nd'); if(d) d.style.display='none'; };
 })();
