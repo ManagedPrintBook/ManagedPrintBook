@@ -1,0 +1,13 @@
+{
+  "supabase_url": "https://zaogpwfobqvayeejfvxc.supabase.co",
+  "supabase_anon_key": "sb_publishable_NWe7FFqt7_C0qOOZoqvsFQ_tH9qBCty",
+  "customers": [
+    {
+      "token": "PASTE-THIS-CUSTOMERS-PORTAL-TOKEN",
+      "printers": [
+        { "ip": "192.168.1.50", "brand": "kyocera", "community": "public" },
+        { "ip": "192.168.1.51", "brand": "epson", "community": "public", "total_only": true }
+      ]
+    }
+  ]
+}

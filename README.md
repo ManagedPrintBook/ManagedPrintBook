@@ -25,3 +25,12 @@ Run `supabase/security.sql` in Supabase → SQL Editor. The admin then sets ONE 
 It is stored hashed on the server, checked on the server, and wrong tries are limited (5 tries, then 5-minute lock). Staff can only enter it, never set it.
 The app locks after 1 minute idle, when you return from another tab/window after more than 1 minute, and after a page reload. Closing the tab signs out completely.
 Forgot the key? SQL Editor: `delete from public.app_security;`
+
+## Add-on 4 (addons4.js)
+PDC tracker, security deposits, collections follow-up + payment link, management dashboard, owner report, technician schedule,
+engineer visits (GPS + signature), meter reading from a WhatsApp message, contract templates (Lease/AMC/FSMA, also in Quote),
+agreements with on-screen signatures, customer signature on quotes.
+
+## Automatic meter readings (agent/meter_agent.py)
+Reads Kyocera / Epson printers over SNMP and sends readings to the portal Inbox (you press Accept). See the header of the script.
+Copy `agent/config.example.json` to `config.json`, add each customer's portal token, run `--discover <printer-ip>` once per model to verify counters.
