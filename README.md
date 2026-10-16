@@ -30,7 +30,3 @@ Forgot the key? SQL Editor: `delete from public.app_security;`
 PDC tracker, security deposits, collections follow-up + payment link, management dashboard, owner report, technician schedule,
 engineer visits (GPS + signature), meter reading from a WhatsApp message, contract templates (Lease/AMC/FSMA, also in Quote),
 agreements with on-screen signatures, customer signature on quotes.
-
-## Automatic meter readings (agent/meter_agent.py)
-Reads Kyocera / Epson printers over SNMP and sends readings to the portal Inbox (you press Accept). See the header of the script.
-Copy `agent/config.example.json` to `config.json`, add each customer's portal token, run `--discover <printer-ip>` once per model to verify counters.
