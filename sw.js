@@ -1,4 +1,4 @@
-const V='shell-v2';
+const V='shell-v3';
 self.addEventListener('install',e=>self.skipWaiting());
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==V).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 /* Network-first for the app shell only (never serve a stale copy while online); customer data lives in Supabase and is never cached here. */
