@@ -18,7 +18,7 @@ body{padding-bottom:70px}
 .nav button{background:none;border:none;color:#b7bfd3;font-weight:600;font-size:.86rem;padding:19px 15px 16px;cursor:pointer;border-bottom:3px solid transparent;font-family:inherit;white-space:nowrap}
 .nav button:hover{color:#fff}
 .nav button.on{color:#fff;border-bottom-color:var(--amber)}
-.page{max-width:1200px;margin:22px auto;padding:0 20px}
+.page{width:90%;max-width:2400px;margin:22px auto;padding:0}
 .card{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:0 1px 2px rgba(20,33,61,.04);overflow:hidden}
 .pad{padding:20px}
 .filters{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end}
@@ -304,7 +304,7 @@ img,canvas,video{max-width:100%}
  .nav button,.nav .ng{font-size:.8rem!important;padding:10px 9px 9px!important}
  .nd{position:fixed;top:auto;left:8px;right:8px;min-width:0;max-height:62vh;overflow:auto;border-radius:12px}
  .nd a{white-space:normal}
- .page{margin:10px auto;padding:0 8px}
+ .page{width:100%;margin:10px auto;padding:0 8px}
  .pad{padding:14px}.card{border-radius:12px}
  .tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
  .filters{gap:10px}.filters .fg{min-width:130px}.filters .grow{min-width:100%}
@@ -2747,8 +2747,8 @@ document.addEventListener('click',e=>{ if(!e.target.closest('.bellwrap')) closeB
   window.slEdit=function(id){ _edit.apply(this,arguments); const s=DB.sales.find(x=>x.id===id); try{ if(!s||s.inv){ box().innerHTML=''; fill(s); } else { fill(null); slLegMode('add'); } }catch(e){} };
 })();
 </script>
-<script>window.XA_VER='20261019c';window.addEventListener('error',function(e){try{if(!/addons|security/.test(e.filename||''))return;var b=document.getElementById('xaErr');if(!b){b=document.createElement('div');b.id='xaErr';b.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#b3261e;color:#fff;padding:8px 12px;font:13px Arial';document.body.appendChild(b);}b.innerHTML='⚠ Part of the update failed to load ('+String(e.filename).split('/').pop().split('?')[0]+' line '+e.lineno+'): '+String(e.message).replace(/</g,'&lt;')+' — please send me a screenshot of this. <a href="#" style="color:#fff" onclick="this.parentNode.remove();return false">✕</a>';}catch(x){}});</script><script src="/addons.js?v=20261019c"></script><script src="/addons2.js?v=20261019c"></script><script src="/addons3.js?v=20261019c"></script><script src="/addons4.js?v=20261019c"></script><script src="/addons5.js?v=20261019c"></script>
-<script src="/addons6.js?v=20261019c"></script>
-<script src="/addons7.js?v=20261019c"></script>
-<script src="/addons8.js?v=20261019c"></script><script src="/addons9.js?v=20261019c"></script><script src="/addons10.js?v=20261019c"></script><script src="/security.js?v=20261019c"></script>
+<script>window.XA_VER='20261019d';window.addEventListener('error',function(e){try{if(!/addons|security/.test(e.filename||''))return;var b=document.getElementById('xaErr');if(!b){b=document.createElement('div');b.id='xaErr';b.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#b3261e;color:#fff;padding:8px 12px;font:13px Arial';document.body.appendChild(b);}b.innerHTML='⚠ Part of the update failed to load ('+String(e.filename).split('/').pop().split('?')[0]+' line '+e.lineno+'): '+String(e.message).replace(/</g,'&lt;')+' — please send me a screenshot of this. <a href="#" style="color:#fff" onclick="this.parentNode.remove();return false">✕</a>';}catch(x){}});</script><script src="/addons.js?v=20261019d"></script><script src="/addons2.js?v=20261019d"></script><script src="/addons3.js?v=20261019d"></script><script src="/addons4.js?v=20261019d"></script><script src="/addons5.js?v=20261019d"></script>
+<script src="/addons6.js?v=20261019d"></script>
+<script src="/addons7.js?v=20261019d"></script>
+<script src="/addons8.js?v=20261019d"></script><script src="/addons9.js?v=20261019d"></script><script src="/addons10.js?v=20261019d"></script><script src="/security.js?v=20261019d"></script>
 </body></html>
