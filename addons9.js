@@ -127,6 +127,77 @@ if(typeof window.siDel==='function'&&!window.siDel.__xa9){ const w=function(no){
     askConfirm('Delete '+(old?'this old sales record':'sales invoice '+no)+'? Stocked quantities go back to Stock & Pricing. It can be restored from Admin → Recycle bin.',()=>{ let back=0; arr('sales').filter(x=>old?x.id===String(no).slice(1):x.inv===no).forEach(x=>{ if(x.stk||x.qno){ const s=stockItem(x.item); if(s){ s.qty=num(s.qty)+num(x.qty); back++; } } });
       DB.sales=DB.sales.filter(x=>old?x.id!==String(no).slice(1):x.inv!==no); save(); renderSales(); renderBell(); renderInvoices(); toast('Invoice deleted'+(back?' — stock restored.':'.')); }); }; w.__xa9=1; window.siDel=w; }
 
+/* ================== RECEIVABLES: Sales / Other invoices now count in ledger, payments and aging ================== */
+function saleDocs(cid){ const g={}; arr('sales').filter(x=>x.cid===cid&&x.inv&&!/^Q-/.test(x.inv)).forEach(x=>{ const r=g[x.inv]=g[x.inv]||{no:x.inv,date:x.date,amt:0,ref:x.ref||'Consumable'}; r.amt+=num(x.amount); }); return Object.values(g); }
+window.acct=function(cid){
+  const c=custById(cid), td=termDays(c), docs=[];
+  DB.invoices.filter(v=>v.cid===cid).forEach(v=>docs.push({date:v.date,type:'Invoice',ref:v.no,debit:v.total,credit:0,due:addDays(v.date,td),inv:v}));
+  saleDocs(cid).forEach(sv=>docs.push({date:sv.date,type:'Invoice',ref:sv.no,debit:r2(sv.amt),credit:0,due:addDays(sv.date,td),sale:sv}));
+  DB.ledger.filter(l=>l.cid===cid).forEach(l=>{ const d=(l.type==='latefee'||l.type==='opening'); docs.push({date:l.date,type:LTYPE[l.type],ref:[l.ref,l.note].filter(Boolean).join(' · '),debit:d?l.amount:0,credit:d?0:l.amount,due:d?addDays(l.date,td):null,led:l}); });
+  docs.sort((a,b)=>String(a.date).localeCompare(String(b.date))); let bal=0; docs.forEach(d=>{ bal+=d.debit-d.credit; d.bal=r2(bal); });
+  const debits=docs.filter(d=>d.debit>0), t=todayISO(); debits.forEach(d=>{ d.paid=0; });
+  let pool=0; docs.filter(d=>d.led&&d.credit>0).forEach(d=>{ let rest=d.credit; (d.led.alloc||[]).forEach(al=>{ const tg=debits.find(x=>x.type==='Invoice'&&x.ref===al.ref); if(tg){ const a=Math.min(num(al.amt),tg.debit-tg.paid,rest); if(a>0){ tg.paid=r2(tg.paid+a); rest=r2(rest-a); } } }); pool=r2(pool+rest); });
+  debits.forEach(d=>{ const a=Math.min(pool,d.debit-d.paid); d.paid=r2(d.paid+a); pool=r2(pool-a); d.open=r2(d.debit-d.paid); d.age=d.open>0?daysBetween(d.due,t):0; d.overdue=d.open>0&&d.due<t; });
+  return {c,docs,debits,balance:r2(bal),overdue:r2(debits.filter(d=>d.overdue).reduce((s,d)=>s+d.open,0)),unapplied:Math.max(0,pool),terms:td};
+};
+/* All Invoices list: give Sales rows a real status / due date / balance */
+(function(){ const r0=window.renderInvoices; if(typeof r0!=='function'||r0.__xa9) return; const w=function(){ const r=r0.apply(this,arguments); try{ const cache={}; document.querySelectorAll('#invTable tbody tr').forEach(tr=>{ const a=tr.querySelector('a[onclick*="siView("]'); if(!a||tr.cells.length<8) return; const m=(a.getAttribute('onclick')||'').match(/siView\('([^']*)'/); if(!m) return; const no=m[1].replace(/&amp;/g,'&'), row=arr('sales').find(x=>x.inv===no); if(!row||!custById(row.cid)) return; const ac=cache[row.cid]||(cache[row.cid]=acct(row.cid)), d=ac.debits.find(x=>x.type==='Invoice'&&x.ref===no); if(!d) return; const days=daysBetween(todayISO(),d.due); tr.cells[4].innerHTML=d.open<=0?'<span class="badge good">PAID</span>':d.overdue?'<span class="badge bad">OVERDUE BY '+(-days)+' DAYS</span>':'<span class="badge blue">DUE IN '+days+' DAYS</span>'; tr.cells[5].textContent=fmtDMY(d.due); tr.cells[7].textContent='AED'+fmtM(d.open); }); }catch(e){} return r; }; w.__xa9=1; window.renderInvoices=w; })();
+
+/* ================== PAYMENT RECEIVED (Zoho style) ================== */
+let rp=null;
+const dueDocs=cid=>{ try{ return acct(cid).debits.filter(d=>d.type==='Invoice'&&d.open>0.004).sort((a,b)=>String(a.date).localeCompare(String(b.date))); }catch(e){ return []; } };
+function rpAuto(){ let left=num(rp.amount); rp.docs.forEach(d=>{ const a=Math.min(left,d.open); rp.alloc[d.ref]=a>0?r2(a):0; left=r2(left-a); }); }
+function rpSums(){ const used=r2(Object.values(rp.alloc).reduce((s,v)=>s+num(v),0)); return {used,excess:r2(num(rp.amount)-used)}; }
+function rpCalc(){ const s=rpSums(), e=g('rp_sum'); if(e) e.innerHTML='<div style="display:flex;justify-content:space-between"><span>Amount received</span><b>'+fmtM(num(rp.amount))+'</b></div><div style="display:flex;justify-content:space-between"><span>Amount used for payments</span><b>'+fmtM(s.used)+'</b></div><div style="display:flex;justify-content:space-between;color:'+(s.excess<0?'#c0392b':'#1e7e34')+'"><span>'+(s.excess<0?'Applied more than received':'Amount in excess (advance)')+'</span><b>'+fmtM(s.excess)+'</b></div>'; }
+function rpRows(){ const tb=g('rp_rows'); if(!tb) return; tb.innerHTML=rp.docs.length?rp.docs.map((d,i)=>'<tr><td>'+fmtDMY(d.date)+'</td><td><b>'+esc(d.ref)+'</b><div class="xa-hint" style="margin:0">'+esc(d.sale?(d.sale.ref||'Sales'):(d.inv&&d.inv.ref)||'Lease')+'</div></td><td>'+fmtDMY(d.due)+(d.overdue?' <span class="badge bad">overdue</span>':'')+'</td><td class="n">'+fmtM(d.debit)+'</td><td class="n">'+fmtM(d.open)+'</td><td><input class="xa-in" type="number" step="any" style="width:120px" value="'+(num(rp.alloc[d.ref])||'')+'" oninput="XA.rpRow('+i+',this.value)"></td></tr>').join(''):'<tr><td colspan="6" class="empty">No unpaid invoices for this customer — the full amount will be kept as an advance.</td></tr>'; rpCalc(); }
+XA.rpRow=(i,v)=>{ const d=rp.docs[i]; rp.alloc[d.ref]=Math.min(num(v),d.open); rpCalc(); };
+XA.rpAmt=v=>{ rp.amount=num(v); rpAuto(); rpRows(); };
+XA.rpClear=()=>{ rp.alloc={}; rpRows(); };
+XA.rpApply=()=>{ rpAuto(); rpRows(); };
+XA.rpCust=()=>{ rp.cid=g('rp_cust').value; rp.docs=dueDocs(rp.cid); rp.alloc={}; rpAuto(); const t=g('rp_due'); if(t) t.textContent='Outstanding: AED '+fmtM(rp.docs.reduce((s,d)=>s+d.open,0)); rpRows(); };
+XA.rpClose=()=>{ const o=g('xaRp'); if(o){ o.classList.remove('show'); o.style.display='none'; } };
+XA.rpSave=()=>{ rp.date=g('rp_date').value; rp.method=g('rp_mode').value; rp.dep=g('rp_dep').value; rp.ref=g('rp_ref').value.trim(); rp.note=g('rp_note').value.trim(); rp.no=g('rp_no').value.trim();
+  if(!rp.cid){ toast('Select a customer.',true); return; } if(!(num(rp.amount)>0)){ toast('Enter the amount received.',true); return; } if(!rp.date){ toast('Pick the payment date.',true); return; }
+  const s=rpSums(); if(s.excess<-0.005){ toast('Applied amount is more than the amount received.',true); return; }
+  const alloc=rp.docs.filter(d=>num(rp.alloc[d.ref])>0).map(d=>({ref:d.ref,amt:r2(num(rp.alloc[d.ref]))}));
+  const m=String(rp.no).match(/(\d+)$/); if(m) DB.prSeq=Math.max(DB.prSeq||0,parseInt(m[1],10));
+  DB.ledger.push({id:uid(),cid:rp.cid,date:rp.date,type:'payment',amount:r2(rp.amount),method:rp.method,ref:rp.ref,note:[rp.no,rp.note].filter(Boolean).join(' · '),dep:rp.dep,alloc,pno:rp.no});
+  save(); XA.rpClose(); try{ const pc=g('pay_cust'); if(pc) pc.value=rp.cid; }catch(e){} if(typeof renderAll==='function') renderAll(); toast('Payment '+rp.no+' recorded'+(s.excess>0.005?' — AED '+fmtM(s.excess)+' kept as advance.':'.')); };
+const openLedger0=window.openLedger;
+window.openLedger=function(type,cid,amount,ref){
+  if(type!=='payment'&&typeof openLedger0==='function') return openLedger0.apply(this,arguments);
+  const cid0=cid||(g('pay_cust')&&g('pay_cust').value)||(DB.customers[0]||{}).id; if(!cid0){ toast('Add a customer first.',true); return; }
+  rp={cid:cid0,amount:num(amount)||0,date:today(),method:'Bank transfer',dep:'Bank account',ref:'',note:'',no:'PR-'+String((DB.prSeq||0)+1).padStart(4,'0'),docs:[],alloc:{}};
+  rp.docs=dueDocs(cid0); if(ref&&rp.docs.some(d=>d.ref===ref)&&rp.amount>0){ rp.alloc[ref]=Math.min(rp.amount,rp.docs.find(d=>d.ref===ref).open); } else rpAuto();
+  let o=g('xaRp'); if(!o){ o=document.createElement('div'); o.className='overlay'; o.id='xaRp'; document.body.appendChild(o); }
+  const lab=(t,inner,fl)=>'<div style="flex:'+(fl||'1 1 170px')+'"><label style="font-size:.8rem">'+t+'</label>'+inner+'</div>', sel=(id,arr_,cur)=>'<select class="xa-in" id="'+id+'">'+arr_.map(x=>'<option'+(x===cur?' selected':'')+'>'+x+'</option>').join('')+'</select>';
+  o.innerHTML='<div class="modal" style="max-width:980px;width:97vw;max-height:94vh;overflow:auto"><h3>Payment received</h3>'
+   +'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px">'+lab('Customer name *','<select class="xa-in" id="rp_cust" onchange="XA.rpCust()">'+DB.customers.map(c=>'<option value="'+c.id+'"'+(c.id===cid0?' selected':'')+'>'+esc(c.name)+'</option>').join('')+'</select><div class="xa-hint" id="rp_due" style="margin:2px 0 0">Outstanding: AED '+fmtM(rp.docs.reduce((s,d)=>s+d.open,0))+'</div>','2 1 260px')
+   +lab('Amount received (AED) *','<input class="xa-in" type="number" step="any" id="rp_amt" value="'+(rp.amount||'')+'" oninput="XA.rpAmt(this.value)">')+lab('Payment date *','<input class="xa-in" type="date" id="rp_date" value="'+rp.date+'">')+'</div>'
+   +'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px">'+lab('Payment #','<input class="xa-in" id="rp_no" value="'+rp.no+'">')+lab('Payment mode',sel('rp_mode',['Bank transfer','Cash','Cheque','Card','Online payment','Other'],rp.method))+lab('Deposit to',sel('rp_dep',['Bank account','Petty cash','Undeposited funds'],rp.dep))+lab('Reference #','<input class="xa-in" id="rp_ref" placeholder="Cheque / transfer no.">')+'</div>'
+   +'<div style="display:flex;justify-content:space-between;align-items:center;margin:10px 0 4px"><b>Unpaid invoices</b><span><button class="btn sm ghost" onclick="XA.rpApply()">Auto-apply (oldest first)</button> <button class="btn sm ghost" onclick="XA.rpClear()">Clear applied amount</button></span></div>'
+   +'<div style="overflow:auto"><table class="xa-tbl"><thead><tr><th>Date</th><th>Invoice #</th><th>Due date</th><th class="n">Invoice amount</th><th class="n">Amount due</th><th>Payment</th></tr></thead><tbody id="rp_rows"></tbody></table></div>'
+   +'<div style="display:flex;justify-content:flex-end;margin-top:8px"><div style="min-width:300px;line-height:1.8" id="rp_sum"></div></div>'
+   +'<div style="margin-top:8px"><label style="font-size:.8rem">Notes</label><textarea class="xa-in" id="rp_note" rows="2"></textarea></div>'
+   +'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><button class="btn ghost" onclick="XA.rpClose()">Cancel</button><button class="btn" onclick="XA.rpSave()">💾 Save payment</button></div></div>';
+  o.classList.add('show'); o.style.display='flex'; rpRows(); };
+
+/* ================== QUOTE TEMPLATES: Standard / Proforma (PI) / Arabic / Lite ================== */
+const QT=[['std','Standard'],['pi','Proforma Invoice (PI)'],['ar','Arabic (bilingual)'],['lite','Lite']];
+const QAR={'QUOTE':'عرض سعر','PROFORMA INVOICE':'فاتورة مبدئية','Bill To':'فاتورة إلى','Ship To':'شحن إلى','Quote#':'رقم العرض','PI#':'رقم الفاتورة المبدئية','Quote Date':'تاريخ العرض','PI Date':'التاريخ','Sales person':'مندوب المبيعات','Subject :':'الموضوع','Item &amp; Description':'الصنف والوصف','Qty':'الكمية','Rate':'السعر','Disc':'الخصم','Tax':'الضريبة','Amount':'المبلغ','Sub Total':'المجموع الفرعي','Total Taxable Amount':'المبلغ الخاضع للضريبة','Total':'الإجمالي','Terms &amp; Conditions':'الشروط والأحكام','Reference#':'المرجع'};
+function qTplHtml(q,tpl){ let h=qDocBase(q);
+  if(tpl==='pi'){ h=h.replace('>QUOTE<','>PROFORMA INVOICE<').replace('>Quote#<','>PI#<').replace('>Quote Date<','>PI Date<'); const co=DB.company||{}; const bank=(co.bankName||co.bankAcNo||co.bankIBAN)?'<div class="tc"><h4>Bank details</h4><div>'+[co.bankName&&('Bank: '+esc(co.bankName)),co.bankAccName&&('Account name: '+esc(co.bankAccName)),co.bankAcNo&&('Account no.: '+esc(co.bankAcNo)),co.bankIBAN&&('IBAN: '+esc(co.bankIBAN)),co.bankSwift&&('Swift: '+esc(co.bankSwift))].filter(Boolean).join('<br>')+'</div></div>':'';
+    h=h.replace('<div class="tc"><h4>Terms','<div style="margin-top:16px;padding:8px 12px;border:1px dashed #bbb;background:#fafafa"><b>Proforma invoice — not a tax invoice.</b> Goods / services are released against payment. A tax invoice will be issued once payment is received.</div>'+bank+'<div class="tc"><h4>Terms'); }
+  else if(tpl==='ar'){ Object.keys(QAR).sort((a,b)=>b.length-a.length).forEach(k=>{ const esk=k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); h=h.replace(new RegExp('(>\\s*)'+esk+'(\\s*<)','g'),'$1'+k+' / '+QAR[k]+'$2'); }); h=h.replace('<style>','<style>body{font-family:"Segoe UI",Tahoma,Arial,sans-serif}'); }
+  else if(tpl==='lite'){ h=h.replace('</style>','.top img{display:none}.top{justify-content:flex-end}body{font-size:11px;padding:20px 26px 50px}.ttl{margin:4px 0 10px}.ttl span{font-size:17px}th,td{padding:5px 8px}.bar div,.vals div{padding:5px 8px}.two{margin-bottom:10px}.tc h4{font-size:12px}.tc{margin-top:12px;font-size:10px}</style>'); }
+  return h; }
+const qDocBase=window.qDocHtml;
+window.qDocHtml=function(q){ const t=q.tpl||(DB.company||{}).qTpl||'std'; return t==='std'?qDocBase(q):qTplHtml(q,t); };
+XA._rp=()=>rp; XA._tpl=qTplHtml;
+XA.qTpl=function(id,v){ const q=DB.quotes.find(x=>x.id===id); if(!q) return; q.tpl=v; save(); qView(id); };
+const qView0=window.qView;
+window.qView=function(id){ qView0.apply(this,arguments); try{ const q=DB.quotes.find(x=>x.id===id), t=q.tpl||(DB.company||{}).qTpl||'std'; g('dvBtns').insertAdjacentHTML('afterbegin','<select title="Quote template" onchange="XA.qTpl(\''+id+'\',this.value)" style="width:auto;padding:4px 6px;margin-right:6px">'+QT.map(x=>'<option value="'+x[0]+'"'+(x[0]===t?' selected':'')+'>'+x[1]+'</option>').join('')+'</select>'); }catch(e){} };
+
 /* New Customer: the Contract tab is removed (contracts are added from Contracts / Add Machine) */
 if(!g('xaCss9')){ const st=document.createElement('style'); st.id='xaCss9'; st.textContent='#zt_contract{display:none!important}'; document.head.appendChild(st); }
 })();
