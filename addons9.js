@@ -135,9 +135,10 @@ window.acct=function(cid){
   saleDocs(cid).forEach(sv=>docs.push({date:sv.date,type:'Invoice',ref:sv.no,debit:r2(sv.amt),credit:0,due:addDays(sv.date,td),sale:sv}));
   DB.ledger.filter(l=>l.cid===cid).forEach(l=>{ const d=(l.type==='latefee'||l.type==='opening'); docs.push({date:l.date,type:LTYPE[l.type],ref:[l.ref,l.note].filter(Boolean).join(' · '),debit:d?l.amount:0,credit:d?0:l.amount,due:d?addDays(l.date,td):null,led:l}); });
   docs.sort((a,b)=>String(a.date).localeCompare(String(b.date))); let bal=0; docs.forEach(d=>{ bal+=d.debit-d.credit; d.bal=r2(bal); });
-  const debits=docs.filter(d=>d.debit>0), t=todayISO(); debits.forEach(d=>{ d.paid=0; });
-  let pool=0; docs.filter(d=>d.led&&d.credit>0).forEach(d=>{ let rest=d.credit; (d.led.alloc||[]).forEach(al=>{ const tg=debits.find(x=>x.type==='Invoice'&&x.ref===al.ref); if(tg){ const a=Math.min(num(al.amt),tg.debit-tg.paid,rest); if(a>0){ tg.paid=r2(tg.paid+a); rest=r2(rest-a); } } }); pool=r2(pool+rest); });
-  debits.forEach(d=>{ const a=Math.min(pool,d.debit-d.paid); d.paid=r2(d.paid+a); pool=r2(pool-a); d.open=r2(d.debit-d.paid); d.age=d.open>0?daysBetween(d.due,t):0; d.overdue=d.open>0&&d.due<t; });
+  const debits=docs.filter(d=>d.debit>0), t=todayISO(); debits.forEach(d=>{ d.paid=0; }); const Q=[];
+  docs.filter(d=>d.led&&d.credit>0).forEach(d=>{ d.applied=[]; d.unused=0; let rest=d.credit; (d.led.alloc||[]).forEach(al=>{ const tg=debits.find(x=>x.type==='Invoice'&&x.ref===al.ref); if(tg){ const a=Math.min(num(al.amt),tg.debit-tg.paid,rest); if(a>0){ tg.paid=r2(tg.paid+a); rest=r2(rest-a); if(!d.applied.includes(tg.ref)) d.applied.push(tg.ref); } } }); if(rest>0.004) Q.push({d,amt:rest}); });
+  debits.forEach(d=>{ let need=r2(d.debit-d.paid); while(need>0.004&&Q.length){ const h=Q[0], a=Math.min(h.amt,need); d.paid=r2(d.paid+a); need=r2(need-a); h.amt=r2(h.amt-a); if(!h.d.applied.includes(d.ref)) h.d.applied.push(d.ref); if(h.amt<=0.004) Q.shift(); } d.open=r2(d.debit-d.paid); d.age=d.open>0?daysBetween(d.due,t):0; d.overdue=d.open>0&&d.due<t; });
+  let pool=0; Q.forEach(h=>{ h.d.unused=h.amt; pool=r2(pool+h.amt); });
   return {c,docs,debits,balance:r2(bal),overdue:r2(debits.filter(d=>d.overdue).reduce((s,d)=>s+d.open,0)),unapplied:Math.max(0,pool),terms:td};
 };
 /* All Invoices list: give Sales rows a real status / due date / balance */
