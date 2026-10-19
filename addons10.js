@@ -164,4 +164,23 @@ XA.prCsv=()=>{ const rows=[['Date','Payment #','Reference','Customer','Invoices'
 try{ XA.FIN&&XA.FIN.push('prc'); }catch(e){}
 function patchMenu(){ if(typeof SD==='undefined'||SD.__xa10) return; const G=SD.find(x=>x.g==='Sales'); if(!G) return; SD.__xa10=1; G.items.push(['Payments Received','xa','prc']); sdBuild(); try{ sdSync('customers'); }catch(e){} }
 setInterval(patchMenu,900);
+
+/* ================== ENCRYPTED BACKUP (AES-256-GCM, password-based) ================== */
+const b64=u8=>{ let s=''; u8.forEach(b=>s+=String.fromCharCode(b)); return btoa(s); }, unb64=t=>Uint8Array.from(atob(t),c=>c.charCodeAt(0));
+async function deriveKey(pw,salt,iter){ const km=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveKey']); return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:iter,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['encrypt','decrypt']); }
+async function encText(text,pw){ const salt=crypto.getRandomValues(new Uint8Array(16)), iv=crypto.getRandomValues(new Uint8Array(12)), iter=250000, key=await deriveKey(pw,salt,iter); const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(text))); return JSON.stringify({mpb:1,alg:'AES-256-GCM',kdf:'PBKDF2-SHA256',iter,salt:b64(salt),iv:b64(iv),data:b64(ct)}); }
+async function decText(json,pw){ const o=JSON.parse(json); const key=await deriveKey(pw,unb64(o.salt),o.iter); const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(o.iv)},key,unb64(o.data)); return new TextDecoder().decode(pt); }
+XA._enc=encText; XA._dec=decText;
+function askPw(title,confirmIt,cb){ let o=g('xaPw'); if(!o){ o=document.createElement('div'); o.className='overlay'; o.id='xaPw'; document.body.appendChild(o); }
+  o.innerHTML='<div class="modal" style="max-width:420px"><h3>'+title+'</h3><label style="font-size:.8rem">Password</label><input class="xa-in" type="password" id="xaPw1" autocomplete="new-password">'+(confirmIt?'<label style="font-size:.8rem;margin-top:6px;display:block">Confirm password</label><input class="xa-in" type="password" id="xaPw2" autocomplete="new-password"><div class="xa-hint">Use at least 8 characters. <b>If you forget this password the backup cannot be opened — nobody can recover it.</b></div>':'')+'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><button class="btn ghost" id="xaPwX">Cancel</button><button class="btn" id="xaPwOk">OK</button></div></div>'; o.classList.add('show'); o.style.display='flex';
+  const close=()=>{ o.classList.remove('show'); o.style.display='none'; o.innerHTML=''; };
+  g('xaPwX').onclick=close; g('xaPwOk').onclick=()=>{ const a=g('xaPw1').value; if(confirmIt){ if(a.length<8){ toast('Use at least 8 characters.',true); return; } if(a!==g('xaPw2').value){ toast('Passwords do not match.',true); return; } } else if(!a){ toast('Enter the password.',true); return; } close(); cb(a); };
+  setTimeout(()=>{ const i=g('xaPw1'); if(i) i.focus(); },50); }
+function dl(name,text){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type:'application/json'})); a.download=name; document.body.appendChild(a); a.click(); a.remove(); }
+const backup0=window.backupJSON;
+window.backupJSON=function(auto){ if(auto||!(window.crypto&&crypto.subtle)) return backup0.apply(this,arguments);
+  askPw('Encrypted backup',true,async pw=>{ try{ const txt=await encText(JSON.stringify(DB),pw); dl('Lease_Billing_Backup_'+todayISO()+'.encrypted.json',txt); DB.backup.last=new Date().toISOString(); save(); try{ bkCheck(); bkInfo(); }catch(e){} toast('Encrypted backup downloaded (AES-256). Keep the password safe.'); }catch(e){ toast('Backup failed: '+e.message,true); } }); };
+const restore0=window.restoreJSON;
+window.restoreJSON=function(evt){ const f=evt.target.files[0]; if(!f) return; const rd=new FileReader(); rd.onload=e=>{ let o=null; try{ o=JSON.parse(e.target.result); }catch(er){} if(!(o&&o.mpb===1&&o.data)){ evt.target.value=''; const dt=new DataTransfer(); dt.items.add(f); const ev2={target:{files:dt.files,value:''}}; return restore0(ev2); }
+    evt.target.value=''; askPw('Enter the backup password',false,async pw=>{ try{ const d=JSON.parse(await decText(e.target.result,pw)); if(!d||!Array.isArray(d.customers)) throw new Error('not a backup file'); DB=d; normalizeData(); save(); renderAll(); toast('Encrypted backup restored.'); }catch(er){ toast('Wrong password or damaged backup.',true); } }); }; rd.readAsText(f); };
 })();
