@@ -9,7 +9,7 @@ const blank=()=>({item:'',desc:'',unit:'nos',qty:1,rate:0,disc:0,tax:5,cost:0});
 function rowHtml(l,i,c,SK){ const q=c==='q', k=(l.item||'').trim().toLowerCase(), it=SK[k], E="XA5.set('"+c+"',"+i+",", dis=c+i;
  const num=(f,w,ex)=>'<input type="number" '+(ex||'')+' class="zin xa5n" value="'+l[f]+'" oninput="'+E+"'"+f+"',this)\">";
  return '<tr class="xa5r" ondragover="event.preventDefault()" ondrop="XA5.dr(event,\''+c+'\','+i+')"><td class="xa5i"><span class="xa5h" draggable="true" title="Drag to reorder" ondragstart="XA5.ds(event,\''+c+'\','+i+')">⋮⋮</span><input class="zin xa5nm" value="'+esc(l.item)+'" placeholder="Type or click to select an item (name or SKU, e.g. CK-8315)" oninput="'+E+'\'item\',this);XA5.sug(this,\''+c+'\','+i+')" onfocus="XA5.sug(this,\''+c+'\','+i+')" onkeydown="XA5.itemKey(event,this,\''+c+'\','+i+')" onblur="XA5.blur(\''+c+'\','+i+')">'
- +(it&&it.sku?'<div class="xa5sku">SKU: '+esc(it.sku)+'</div>':'')+'<textarea class="xa5d" rows="'+Math.max(2,String(l.desc||'').split('\n').length)+'" placeholder="Add a description to your item" oninput="'+E+'\'desc\',this)" onkeydown="XA5.descKey(event,\''+c+'\','+i+')">'+esc(l.desc||'')+'</textarea>'+XA5.meta(l,c,i)+'</td>'
+ +(it&&it.sku?'<div class="xa5sku">SKU: '+esc(it.sku)+'</div>':'')+'<textarea class="xa5d" rows="'+Math.max(2,String(l.desc||'').split('\n').length)+'" oninput="'+E+'\'desc\',this)" onkeydown="XA5.descKey(event,\''+c+'\','+i+')" onblur="setTimeout(function(){window.qDescHide&&qDescHide()},200)">'+esc(l.desc||'')+'</textarea>'+XA5.meta(l,c,i)+'</td>'
  +'<td class="xa5c">'+num('qty',72,'min="1"')+'<div class="xa5u">'+(q?'<input class="zin" style="width:64px;text-align:center" value="'+esc(l.unit||'nos')+'" oninput="'+E+'\'unit\',this)">':esc(l.unit||'nos'))+'</div></td>'
  +'<td class="xa5c">'+num('rate',100,'step="0.01"')+'<a href="#" class="xa5rt" onclick="XA5.recent(\''+c+'\','+i+');return false">Recent Transactions</a></td>'
  +'<td class="xa5c">'+num('disc',64)+'<span class="xa5u"> %</span></td>'
@@ -30,7 +30,7 @@ X.recent=function(c,i){ const l=R(c)[i]; if(!l||!l.item.trim()){ toast('Select a
 window.pDraw=function(){ { const SK=skMap(); g('pRows').innerHTML=pRows.map((l,i)=>rowHtml(l,i,'p',SK)).join(''); }; pCalc(); };
 window.qDraw=function(){ { const SK=skMap(); g('qRows').innerHTML=qRows.map((l,i)=>rowHtml(l,i,'q',SK)).join(''); }; qCalc(); };
 window.pAddRow=function(){ pRows.push(blank()); pDraw(); }; window.qAddRow=function(){ qRows.push(blank()); qDraw(); };
-X.set=function(c,i,k,el){ const l=R(c)[i]; if(!l) return; l[k]=(k==='item'||k==='desc'||k==='unit')?el.value:(+el.value||0); if(k==='desc') el.rows=Math.max(2,el.value.split('\n').length); if(k!=='item'&&k!=='desc'&&k!=='unit') calc(c); };
+X.set=function(c,i,k,el){ const l=R(c)[i]; if(!l) return; l[k]=(k==='item'||k==='desc'||k==='unit')?el.value:(+el.value||0); if(k==='desc'){ el.rows=Math.max(2,el.value.split('\n').length); if(window.qDescSug) window.qDescSug(el,i,c); } if(k!=='item'&&k!=='desc'&&k!=='unit') calc(c); };
 X.del=function(c,i){ R(c).splice(i,1); if(!R(c).length) R(c).push(blank()); draw(c); };
 X.sug=function(el,c,i){ qSug(el,i,c==='p'?'p':undefined); };
 function find(t,loose){ t=String(t||'').trim().toLowerCase(); if(!t) return null; const P=qProducts(); let m=P.find(p=>(p.sku||'').toLowerCase()===t)||P.find(p=>p.n.toLowerCase()===t); if(m) return m; if(!loose) return null; const w=t.split(/\s+/); const a=P.filter(p=>w.every(x=>(p.n+' '+(p.sku||'')).toLowerCase().includes(x))); return a.length===1?a[0]:(loose==='first'&&a[0]?a[0]:null); }

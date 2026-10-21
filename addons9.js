@@ -14,6 +14,9 @@ const blank=()=>({code:'',desc:'',note:'',qty:1,rate:0,disc:0,vat:5});
 
 /* ---------- stock helpers ---------- */
 const stockFind=(code,name)=>{ const c=low(code), n=low(name); return arr('stock').find(s=>(c&&(low(s.sku)===c||low(s.code)===c))||(n&&low(s.item)===n))||null; };
+/* Service items (e.g. Annual Maintenance/Service Contract) are not physical stock: never checked, reduced or restocked */
+const isSvc=s=>{ if(!s) return false; const t=String(s.type||'').toLowerCase(); if(/serv/.test(t)) return true; if(/good|product|stock/.test(t)) return false; return /(maintenance|service contract|\bamc\b|\bfsma\b|installation|service charge|labou?r)/i.test(s.item||''); };
+window.isSvcItem=isSvc;
 const stockItem=name=>{ const n=low(name); if(!n) return null; return arr('stock').find(s=>low(s.item)===n||(s.sku&&low(s.sku)===n))||null; };
 const keyOf=r=>low(r.code)||low(r.desc);
 function syncStock(newRows,oldRows){
@@ -104,7 +107,7 @@ XA.poFromQuote=function(){ const Q=(DB.quotes||[]).filter(q=>{ const s=typeof qS
 const po0=XA.views.po; if(po0&&!po0.__xa9){ const r0=po0.render; XA.views.po=Object.assign({},po0,{__xa9:1,render(){ return String(r0.apply(this,arguments)).replace('➕ New purchase order</button>','➕ New purchase order</button><button class="btn sm ghost" onclick="XA.poFromQuote()">📥 From customer quote</button>'); }}); }
 
 /* ================== AVAILABLE QUANTITY on Quote + Invoice, stock reduction on invoice ================== */
-const availOf=(item,editIds)=>{ const s=stockItem(item); if(!s) return null; let a=num(s.qty); (editIds||[]).length&&arr('sales').forEach(x=>{ if(editIds.includes(x.id)&&(x.stk||x.qno)&&low(x.item)===low(item)) a+=num(x.qty); }); return a; };
+const availOf=(item,editIds)=>{ const s=stockItem(item); if(!s||isSvc(s)) return null; let a=num(s.qty); (editIds||[]).length&&arr('sales').forEach(x=>{ if(editIds.includes(x.id)&&(x.stk||x.qno)&&low(x.item)===low(item)) a+=num(x.qty); }); return a; };
 function decorate(tbId,getRows,getEdit){ const tb=g(tbId), R=getRows(); if(!tb||!R) return; Array.from(tb.rows).forEach((tr,i)=>{ const l=R[i]; if(!l||!tr.cells[0]) return; const td=tr.cells[0]; let d=td.querySelector('.xaAv'); if(!d){ d=document.createElement('div'); d.className='xaAv'; d.style.cssText='font-size:.75rem;margin-top:2px'; td.appendChild(d); }
     const a=l.item?availOf(l.item,getEdit()):null; if(a==null){ d.innerHTML=''; return; } const q=num(l.qty), ok=q<=a; d.innerHTML='<span style="color:'+(ok?'#1e7e34':'#c0392b')+'">Available: <b>'+a+'</b>'+(ok?'':' — short by '+(q-a))+'</span>'; }); }
 const dq=()=>decorate('qRows',()=>qRows,()=>[]), dp=()=>decorate('pRows',()=>pRows,()=>(typeof slEditIds!=='undefined'?slEditIds:[]));
@@ -114,17 +117,17 @@ wrap('qDraw',dq); wrap('qCalc',dq); wrap('pDraw',dp); wrap('pCalc',dp);
 /* new invoice / edited invoice: reduce (or re-balance) stock */
 if(typeof window.slAdd==='function'&&!window.slAdd.__xa9){ const slAdd0=window.slAdd; const w=function(){
     const editIds=(typeof slEditIds!=='undefined'?slEditIds:[]).slice(), before=new Set(arr('sales').map(x=>x.id)), old=arr('sales').filter(x=>editIds.includes(x.id)).map(x=>Object.assign({},x)), wasStk=old.some(x=>x.stk||x.qno);
-    try{ const need={}; (pRows||[]).forEach(l=>{ const it=low(l.item); if(it&&num(l.qty)>0) need[it]=(need[it]||0)+num(l.qty); }); const short=[]; Object.keys(need).forEach(k=>{ const s=stockItem(k); if(!s) return; let a=num(s.qty); if(wasStk) old.forEach(x=>{ if((x.stk||x.qno)&&low(x.item)===k) a+=num(x.qty); }); if(need[k]>a) short.push(s.item+' — need '+need[k]+', available '+a); }); if(short.length&&!(editIds.length&&!wasStk)&&!confirm('Not enough stock for:\n'+short.join('\n')+'\n\nSave the invoice anyway?')) return; }catch(e){}
+    try{ const need={}; (pRows||[]).forEach(l=>{ const it=low(l.item); if(it&&num(l.qty)>0) need[it]=(need[it]||0)+num(l.qty); }); const short=[]; Object.keys(need).forEach(k=>{ const s=stockItem(k); if(!s||isSvc(s)) return; let a=num(s.qty); if(wasStk) old.forEach(x=>{ if((x.stk||x.qno)&&low(x.item)===k) a+=num(x.qty); }); if(need[k]>a) short.push(s.item+' — need '+need[k]+', available '+a); }); if(short.length&&!(editIds.length&&!wasStk)&&!confirm('Not enough stock for:\n'+short.join('\n')+'\n\nSave the invoice anyway?')) return; }catch(e){}
     const r=slAdd0.apply(this,arguments);
     try{ const fresh=arr('sales').filter(x=>!before.has(x.id)); if(!fresh.length) return r; if(editIds.length&&!wasStk) return r;
-      if(wasStk) old.forEach(x=>{ if(!(x.stk||x.qno)) return; const s=stockItem(x.item); if(s) s.qty=num(s.qty)+num(x.qty); });
-      fresh.forEach(x=>{ const s=stockItem(x.item); if(s){ s.qty=num(s.qty)-num(x.qty); x.stk=true; } });
+      if(wasStk) old.forEach(x=>{ if(!(x.stk||x.qno)) return; const s=stockItem(x.item); if(s&&!isSvc(s)) s.qty=num(s.qty)+num(x.qty); });
+      fresh.forEach(x=>{ const s=stockItem(x.item); if(s&&!isSvc(s)){ s.qty=num(s.qty)-num(x.qty); x.stk=true; } });
       save(); if(typeof renderSales==='function') renderSales(); if(typeof renderBell==='function') renderBell(); }catch(e){}
     return r; }; w.__xa9=1; window.slAdd=w; }
 
 /* delete invoice: put the quantities back in stock */
 if(typeof window.siDel==='function'&&!window.siDel.__xa9){ const w=function(no){ const old=String(no).charAt(0)==='~';
-    askConfirm('Delete '+(old?'this old sales record':'sales invoice '+no)+'? Stocked quantities go back to Stock & Pricing. It can be restored from Admin → Recycle bin.',()=>{ let back=0; arr('sales').filter(x=>old?x.id===String(no).slice(1):x.inv===no).forEach(x=>{ if(x.stk||x.qno){ const s=stockItem(x.item); if(s){ s.qty=num(s.qty)+num(x.qty); back++; } } });
+    askConfirm('Delete '+(old?'this old sales record':'sales invoice '+no)+'? Stocked quantities go back to Stock & Pricing. It can be restored from Admin → Recycle bin.',()=>{ let back=0; arr('sales').filter(x=>old?x.id===String(no).slice(1):x.inv===no).forEach(x=>{ if(x.stk||x.qno){ const s=stockItem(x.item); if(s&&!isSvc(s)){ s.qty=num(s.qty)+num(x.qty); back++; } } });
       DB.sales=DB.sales.filter(x=>old?x.id!==String(no).slice(1):x.inv!==no); save(); renderSales(); renderBell(); renderInvoices(); toast('Invoice deleted'+(back?' — stock restored.':'.')); }); }; w.__xa9=1; window.siDel=w; }
 
 /* ================== RECEIVABLES: Sales / Other invoices now count in ledger, payments and aging ================== */

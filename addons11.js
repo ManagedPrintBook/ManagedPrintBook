@@ -137,3 +137,37 @@ XT.billWarn=function(c,o){ const w=[]; const lf=o.lf, lt=o.lt;
   return w; };
 XT.warnHTML=w=>(w||[]).map(x=>'<div class="xt-warn'+(x.t==='block'?' xt-block':'')+'">'+(x.t==='block'?'⛔ ':'ℹ️ ')+x.msg+'</div>').join('');
 })();
+
+/* ===== Quote description type-ahead + "ask date" when converting a quote to an invoice ===== */
+(function(){
+'use strict';
+const g=id=>document.getElementById(id);
+let list=[], row=-1, ctxK='q';
+const box=()=>{ let b=g('qDescSug'); if(!b){ b=document.createElement('div'); b.id='qDescSug'; b.style.cssText='position:fixed;z-index:9999;background:#fff;border:1px solid #d5dae5;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.18);max-height:300px;overflow:auto;display:none;font-size:.85rem'; document.body.appendChild(b); } return b; };
+function cands(){ const seen=new Set(), out=[]; const add=(t,p)=>{ t=String(t==null?'':t).trim(); if(!t) return; const k=t.replace(/\s+/g,' ').toLowerCase(); if(seen.has(k)) return; seen.add(k); out.push({t,k,p:p||null}); };
+  (DB.stock||[]).forEach(s=>{ add(s.item,s); add(s.desc,null); });
+  (DB.quotes||[]).forEach(q=>(q.lines||[]).forEach(l=>{ add(l.item); add(l.desc); }));
+  (DB.sales||[]).forEach(x=>{ add(x.item); add(x.desc); }); return out; }
+window.qDescHide=()=>{ const b=g('qDescSug'); if(b) b.style.display='none'; };
+window.qDescSug=function(inp,i,ctx){ ctxK=ctx==='p'?'p':'q'; const q=inp.value.replace(/\s+/g,' ').trim().toLowerCase(); if(q.length<2){ qDescHide(); return; }
+  const w=q.split(' '); row=i;
+  list=cands().filter(c=>c.k!==q&&w.every(x=>c.k.includes(x))).sort((a,b)=>(b.k.startsWith(q)-a.k.startsWith(q))||a.t.length-b.t.length).slice(0,12);
+  const b=box(); if(!list.length){ b.style.display='none'; return; }
+  b.innerHTML=list.map((c,k)=>'<div onmousedown="event.preventDefault();qDescPick('+k+')" style="padding:7px 12px;cursor:pointer;border-bottom:1px solid #eef0f5" onmouseover="this.style.background=\'#eaf1ff\'" onmouseout="this.style.background=\'\'">'+esc(c.t.length>160?c.t.slice(0,160)+'…':c.t)+'</div>').join('');
+  const r=inp.getBoundingClientRect(); b.style.left=Math.max(8,Math.min(r.left,innerWidth-480))+'px'; b.style.top=Math.min(r.bottom+2,innerHeight-320)+'px'; b.style.width=Math.max(r.width,440)+'px'; b.style.display=''; };
+window.qDescPick=function(k){ const c=list[k], RR=ctxK==='p'?pRows:qRows; if(!c||row<0||!RR[row]) return; const R=RR[row]; R.desc=c.t;
+  if(c.p&&!String(R.item||'').trim()){ R.item=c.p.item; if(c.p.price&&!R.rate) R.rate=c.p.price; if(c.p.cost) R.cost=c.p.cost; if(c.p.unit) R.unit=c.p.unit; }
+  qDescHide(); if(ctxK==='p') pDraw(); else qDraw(); };
+window.addEventListener('scroll',()=>{ const b=g('qDescSug'); if(b) b.style.display='none'; },true);
+
+/* ---- ask the invoice date (and reference) before a quote becomes an invoice ---- */
+window.qcAsk=function(id){ const q=DB.quotes.find(x=>x.id===id); if(!q) return;
+  let o=g('qcOverlay'); if(!o){ o=document.createElement('div'); o.className='overlay'; o.id='qcOverlay'; document.body.appendChild(o); }
+  const c=custById(q.cid)||{};
+  o.innerHTML='<div class="modal" style="max-width:460px"><h3>Convert quote to invoice</h3><div class="hint">Quote <b>'+esc(q.no)+'</b> · '+esc(c.name||'')+' → invoice <b>'+esc(slNextInv())+'</b>. Stock is reduced for goods only (services are not stock).</div>'
+   +'<div class="field" style="margin-top:10px"><label>Invoice date</label><input id="qc_date" type="date" value="'+todayISO()+'"></div>'
+   +'<div class="field"><label>Internal reference</label><select id="qc_ref">'+REFS.map(r=>'<option'+(r==='Consumable'?' selected':'')+'>'+r+'</option>').join('')+'</select></div>'
+   +'<div class="modal-actions"><button class="btn ghost" onclick="closeModal(\'qcOverlay\')">Cancel</button><button class="btn" onclick="qcGo(\''+id+'\')">Create invoice</button></div></div>';
+  openModal('qcOverlay'); };
+window.qcGo=function(id){ const d=g('qc_date').value, r=g('qc_ref').value; if(!d){ toast('Choose the invoice date.',true); return; } closeModal('qcOverlay'); try{ dvClose(); }catch(e){} qInvoice(id,d,r); };
+})();
