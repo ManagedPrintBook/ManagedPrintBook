@@ -30,3 +30,11 @@ Forgot the key? SQL Editor: `delete from public.app_security;`
 PDC tracker, security deposits, collections follow-up + payment link, management dashboard, owner report, technician schedule,
 engineer visits (GPS + signature), meter reading from a WhatsApp message, contract templates (Lease/AMC/FSMA, also in Quote),
 agreements with on-screen signatures, customer signature on quotes.
+
+## Add-on 11 (addons11.js) — Transfer machines to another company
+Machine row ⇄ Transfer, customer → More ▾ → "Transfer machines to another company…", and Sr.# search → Transfer.
+Single or Bulk mode, effective date, new-company details shown once for verification, free-allowance carry-over tick,
+optional closing counters. The old company stops being billed from the effective date (lease and excess), the new company is
+billed from it; old invoices stay. Sr.# search shows the current company first, previous companies greyed, plus an ownership
+timeline, and offers "Resolve as transfer" when a Sr.# is Active under two companies. Bills are blocked if one Sr.# would be
+billed to two companies for the same dates.
