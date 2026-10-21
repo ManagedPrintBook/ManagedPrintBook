@@ -37,7 +37,7 @@ XA.leadSt=(id,s)=>{ const l=arr('leads').find(x=>x.id===id); if(l){ l.st=s; XA.s
 XA.leadDel=id=>askConfirm('Delete this lead?',()=>{ DB.leads=arr('leads').filter(x=>x.id!==id); XA.save(); });
 
 /* ---------- VAT output summary (UAE) ---------- */
-XA.reg('vat',{render(){ const by={}; DB.invoices.forEach(i=>{ const m=String(i.date).slice(0,7); const r=by[m]=by[m]||{n:0,sub:0,vat:0,tot:0}; r.n++; r.sub+=num(i.sub); r.vat+=num(i.vat); r.tot+=num(i.total); });
+XA.reg('vat',{render(){ const by={}; DB.invoices.forEach(i=>{ const m=String(i.date).slice(0,7); const r=by[m]=by[m]||{n:0,sub:0,vat:0,tot:0}; r.n++; r.sub+=num(i.sub); r.vat+=num(i.vat); r.tot+=num(i.total); }); const seenInv={}; DB.sales.forEach(x=>{ if(!x.inv||/^Q-/.test(x.inv)) return; const m=String(x.date).slice(0,7); const r=by[m]=by[m]||{n:0,sub:0,vat:0,tot:0}; if(!seenInv[x.inv]){ seenInv[x.inv]=1; r.n++; } r.sub+=num(x.net!=null?x.net:x.amount); r.vat+=num(x.vat); r.tot+=num(x.amount); });
  const ms=Object.keys(by).sort().reverse();
  return H('VAT summary — output tax on invoices')+'<div class="hint" style="margin:6px 0">Output VAT only (from your invoices). Add your purchase VAT from the supplier bills before filing the VAT 201 return.</div>'+tbl(['Month','Invoices','Taxable amount','VAT (5%)','Total'],ms.map(m=>[m,by[m].n,fmtM(by[m].sub),fmtM(by[m].vat),fmtM(by[m].tot)])); }});
 

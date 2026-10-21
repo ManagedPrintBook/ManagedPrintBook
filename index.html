@@ -558,7 +558,7 @@ function normalizeData(){
   DB.invoices=DB.invoices||[]; DB.audit=DB.audit||[]; DB.trash=DB.trash||[]; DB.sales=DB.sales||[]; DB.quotes=DB.quotes||[]; DB.stock=DB.stock||[]; DB.msales=DB.msales||[]; DB.remLog=DB.remLog||{}; DB.ledger=DB.ledger||[]; DB.models=DB.models||{}; DB.remLog=DB.remLog||{}; DB.backup=Object.assign({on:false,days:7,last:''},DB.backup||{});
   DB.customers=DB.customers||[];
   DB.customers.forEach(c=>{
-    ['addr','trn','email','phone','terms','contact','tel','company','salutation','first','last','remarks'].forEach(k=>{ c[k]=c[k]||''; }); c.ctype=c.ctype||'Business'; c.lang=c.lang||'English'; if(!Array.isArray(c.persons)) c.persons=[];
+    ['addr','trn','email','phone','terms','contact','tel','company','salutation','first','last','remarks'].forEach(k=>{ c[k]=c[k]||''; }); c.position=c.position||''; c.ctype=c.ctype||'Business'; c.lang=c.lang||'English'; if(!Array.isArray(c.persons)) c.persons=[];
     if(!Array.isArray(c.contracts)||!c.contracts.length) c.contracts=[Object.assign(kBase(),c.contract||{})];
     c.contracts.forEach(k=>{ const b=kBase(); for(const x in b){ if(k[x]===undefined) k[x]=b[x]; } if(!k.id) k.id=newKid(); if(!Array.isArray(k.history)) k.history=[]; if(!Array.isArray(k.files)) k.files=[]; });
     c.contract=c.contracts[0];   /* the first contract is the "primary" one used by the billing engine */
@@ -660,6 +660,7 @@ function buildModals(){
     <div class="zbody">
       <div class="zrow"><label>Customer Type</label><div class="zc zradio"><label><input type="radio" name="c_ctype" value="Business" checked onchange="cnSuggest()"> Business</label><label><input type="radio" name="c_ctype" value="Individual" onchange="cnSuggest()"> Individual</label></div></div>
       <div class="zrow"><label>Primary Contact</label><div class="zc"><select id="c_sal" class="zin" onchange="cnSuggest()"><option value="">Salutation</option>${SALS.map(s=>'<option>'+s+'</option>').join('')}</select><input id="c_first" class="zin" placeholder="First Name" autocomplete="off" oninput="cnSuggest()"><input id="c_last" class="zin" placeholder="Last Name" autocomplete="off" oninput="cnSuggest()"></div></div>
+      <div class="zrow"><label>Position <small style="color:#8a94a8">(internal only)</small></label><div class="zc"><input id="c_position" class="zin" autocomplete="off"></div></div>
       <div class="zrow"><label>Company Name</label><div class="zc"><input id="c_company" class="zin" autocomplete="off" oninput="cnSuggest()"></div></div>
       <div class="zrow"><label class="req">Display Name*</label><div class="zc"><input id="c_name" class="zin" list="dl_cname" placeholder="Select or type to add" autocomplete="off"></div></div>
       <div class="zrow"><label>Email Address</label><div class="zc"><input id="c_email" class="zin" type="email" autocomplete="off" style="max-width:none"></div></div>
@@ -726,11 +727,11 @@ function buildModals(){
     <h3 id="machineTitle">New Machine</h3>
     <div class="grid2">${S('m_type','Machine Type',['Printer','Plotter'],'onchange="toggleMType()"')}${S('m_status','Status',['Active','Moved out','Retired','Replaced','Warehouse','Removed'])}
       ${F('m_dept','Department','text','oninput="mkSuggest()"')}<div class="field"><label>Brand (choose or type new)</label><input id="m_brand" list="dl_brand" oninput="fillModels()" autocomplete="off"><datalist id="dl_brand"></datalist></div><div class="field"><label>Model (choose or type new — saved for next time)</label><input id="m_model" list="dl_model" autocomplete="off"><datalist id="dl_model"></datalist></div><div class="field"><label>Serial Number (type the first letters to see saved machines)</label><input id="m_serial" placeholder="Type first letters, e.g. VA49" autocomplete="off" onblur="setTimeout(srHide,180)" oninput="srSuggest(this);checkHolder()"></div><div id="holderBox" class="card pad" style="display:none;grid-column:1/-1;border-left:4px solid #e0a100;margin:4px 0"></div>${F('m_eqid','Equipment ID')}
-      ${F('m_desc','Invoice Description (e.g. Kyocera Multifunctional A3 Colour Printer)')}${F('m_remarks','Remarks')}</div>
+      ${F('m_desc','Invoice Description (e.g. Kyocera Multifunctional A3 Colour Printer)')}${F('m_remarks','Remarks')}${F('m_start','Machine Start Date','date','onchange="this.dataset.auto=\'\'"')}${F('m_end','Machine End Date','date','onchange="this.dataset.auto=\'\'"')}</div>
     <h4>Contract (this machine)</h4>
     <div class="field"><label>Select contract — one customer can have many contracts, each with its own start / end date</label><select id="m_contract" onchange="mkChange()"></select></div>
     <div id="mkNew" style="display:none"><div class="warnbox">New contract for this machine — it is added to this customer, and the machine is tracked against its end date (notification at the top right).</div>
-      <div class="grid2">${F('mk_ref','Contract Name (e.g. Finance Dept Contract)')}${S('mk_type','Contract Type',['Lease','Sale (ORS)','AMC','FSMA'])}${F('mk_start','Contract Start','date')}${F('mk_end','Contract End','date')}</div>
+      <div class="grid2">${F('mk_ref','Contract Name (e.g. Finance Dept Contract)')}${S('mk_type','Contract Type',['Lease','Sale (ORS)','AMC','FSMA'])}${F('mk_start','Contract Start','date','oninput="mkAutoDates()"')}${F('mk_end','Contract End','date','oninput="mkAutoDates()"')}</div>
       <div class="hint">Price, minimum billing and escalation can be set later in 📄 Contracts.</div></div>
     <div id="replWrap"><h4>Replacing Existing Machine</h4>
     <label class="tk"><input type="checkbox" id="m_repl" onchange="toggleRepl()"> This machine replaces an existing machine (breakdown / complaint / upgrade)</label>
@@ -902,10 +903,10 @@ function cnSuggest(){ const s=$('c_sal').value, f=$('c_first').value.trim(), l=$
   $('dl_cname').innerHTML=[...new Set(o)].map(x=>'<option value="'+esc(x)+'">').join(''); const best=o[0]||'', nameEl=$('c_name');
   if(!nameEl.value||nameEl.value===nameEl.dataset.auto){ nameEl.value=best; nameEl.dataset.auto=best; } }
 function shipSame(){ const on=$('c_same').checked; if(on) $('c_ship').value=$('c_addr').value; $('c_ship').disabled=on; }
-function cpRender(){ $('cpWrap').innerHTML='<table class="cptab"><thead><tr><th>Salutation</th><th>First Name</th><th>Last Name</th><th>Email Address</th><th>Work Phone</th><th>Mobile</th><th></th></tr></thead><tbody>'+
+function cpRender(){ $('cpWrap').innerHTML='<table class="cptab"><thead><tr><th>Salutation</th><th>First Name</th><th>Last Name</th><th>Position <small>(internal)</small></th><th>Email Address</th><th>Work Phone</th><th>Mobile</th><th></th></tr></thead><tbody>'+
   (cpRows.length?cpRows.map((r,i)=>'<tr><td><select class="zin" onchange="cpRows['+i+'].sal=this.value"><option value=""></option>'+SALS.map(s=>'<option'+(r.sal===s?' selected':'')+'>'+s+'</option>').join('')+'</select></td>'+
-    ['first','last','email','work','mobile'].map(f=>'<td><input class="zin" '+(f==='email'?'type="email"':f==='work'||f==='mobile'?'type="tel" placeholder="+971…"':'')+' value="'+esc(r[f]||'')+'" oninput="cpRows['+i+'].'+f+'=this.value"></td>').join('')+'<td><button class="cpx" title="Remove" onclick="cpDel('+i+')">✕</button></td></tr>').join(''):'<tr><td colspan="7" class="empty" style="padding:14px">No additional contact persons — the primary contact above is used on invoices and WhatsApp.</td></tr>')+'</tbody></table>'; }
-function cpAdd(){ cpRows.push({sal:'',first:'',last:'',email:'',work:'',mobile:''}); cpRender(); }
+    ['first','last','position','email','work','mobile'].map(f=>'<td><input class="zin" '+(f==='email'?'type="email"':f==='work'||f==='mobile'?'type="tel" placeholder="+971…"':'')+' value="'+esc(r[f]||'')+'" oninput="cpRows['+i+'].'+f+'=this.value"></td>').join('')+'<td><button class="cpx" title="Remove" onclick="cpDel('+i+')">✕</button></td></tr>').join(''):'<tr><td colspan="8" class="empty" style="padding:14px">No additional contact persons — the primary contact above is used on invoices and WhatsApp.</td></tr>')+'</tbody></table>'; }
+function cpAdd(){ cpRows.push({sal:'',first:'',last:'',position:'',email:'',work:'',mobile:''}); cpRender(); }
 function cpDel(i){ cpRows.splice(i,1); cpRender(); }
 function openCustomerModal(id){
   editCustomerId=id||null; fillCompany();
@@ -913,7 +914,7 @@ function openCustomerModal(id){
   $('customerTitle').textContent=c?'Edit Customer — '+c.name:'New Customer';
   document.querySelectorAll('input[name=c_ctype]').forEach(r=>{ r.checked=r.value===((c&&c.ctype)||'Business'); });
   let fn=c?c.first:'', ln=c?c.last:''; if(c&&!fn&&!ln&&c.contact){ const p=c.contact.trim().split(/\s+/); fn=p.shift(); ln=p.join(' '); }
-  v('c_sal',c?c.salutation:''); v('c_first',fn); v('c_last',ln); v('c_company',c?c.company:''); v('c_name',c?c.name:''); $('c_name').dataset.auto='';
+  v('c_position',c?(c.position||''):''); v('c_sal',c?c.salutation:''); v('c_first',fn); v('c_last',ln); v('c_company',c?c.company:''); v('c_name',c?c.name:''); $('c_name').dataset.auto='';
   v('c_email',c?c.email:''); setPhone('c_tel',c?c.tel:''); setPhone('c_phone',c?c.phone:''); v('c_lang',(c&&c.lang)||'English');
   v('c_trn',c?c.trn:''); v('c_terms',c?c.terms:''); v('c_addr',c?c.addr:''); v('c_ship',c?(c.shipAddr||''):''); if($('c_same')){ $('c_same').checked=!!c&&!!c.addr&&(c.shipAddr||'')===c.addr; shipSame(); } v('c_remarks',c?c.remarks:'');
   cpRows=c?(c.persons||[]).map(p=>Object.assign({},p)):[]; cpRender();
@@ -927,8 +928,8 @@ function saveCustomer(){
   const name=$('c_name').value.trim()||company||contact; if(!name){ zTab('other'); $('c_name').focus(); toast('Enter a Display Name.',true); return; }
   if(DB.customers.some(x=>x.id!==editCustomerId&&x.name.trim().toLowerCase()===name.toLowerCase())){ $('c_name').focus(); toast('A customer named "'+name+'" already exists — use a different Display Name.',true); return; }
   readCompany();
-  const persons=cpRows.map(p=>({sal:p.sal||'',first:(p.first||'').trim(),last:(p.last||'').trim(),email:(p.email||'').trim(),work:normPhone(p.work),mobile:normPhone(p.mobile)})).filter(p=>p.first||p.last||p.email||p.work||p.mobile);
-  const f={name,ctype:(document.querySelector('input[name=c_ctype]:checked')||{}).value||'Business',company,salutation:sal,first,last,contact,lang:$('c_lang').value,addr:$('c_addr').value.trim(),shipAddr:($('c_same').checked?$('c_addr').value:$('c_ship').value).trim(),trn:$('c_trn').value.trim(),email:$('c_email').value.trim(),phone:joinPhone('c_phone'),tel:joinPhone('c_tel'),terms:$('c_terms').value.trim(),remarks:$('c_remarks').value.trim(),persons,
+  const persons=cpRows.map(p=>({sal:p.sal||'',first:(p.first||'').trim(),last:(p.last||'').trim(),position:(p.position||'').trim(),email:(p.email||'').trim(),work:normPhone(p.work),mobile:normPhone(p.mobile)})).filter(p=>p.first||p.last||p.email||p.work||p.mobile);
+  const f={name,ctype:(document.querySelector('input[name=c_ctype]:checked')||{}).value||'Business',company,salutation:sal,first,last,contact,lang:$('c_lang').value,addr:$('c_addr').value.trim(),shipAddr:($('c_same').checked?$('c_addr').value:$('c_ship').value).trim(),trn:$('c_trn').value.trim(),email:$('c_email').value.trim(),phone:joinPhone('c_phone'),tel:joinPhone('c_tel'),terms:$('c_terms').value.trim(),remarks:$('c_remarks').value.trim(),position:$('c_position').value.trim(),persons,
     contract:{...readTicks('k','k_pM','priceM'),ref:$('k_ref').value.trim(),type:$('k_type').value,warrantyYears:$('k_type').value.startsWith('Sale')?$('k_wy').value:'',warrantyTC:$('k_type').value.startsWith('Sale')?$('k_wtc').value.trim():'',start:$('k_start').value,end:$('k_end').value,minMonthly:parseFloat($('k_min').value)||0,escPct:parseFloat($('k_esc').value)||0}};
   if(editCustomerId){ const cc=custById(editCustomerId); f.contract=Object.assign({},cc.contract,f.contract); Object.assign(cc,f); if(cc.contracts&&cc.contracts.length) cc.contracts[0]=cc.contract; }
   else DB.customers.push(Object.assign({id:uid(),machines:[],monthlyLease:0,leaseCycle:'Monthly',excessCycle:'Quarterly',leaseFrom:'',leaseTo:'',excessFrom:'',excessTo:'',freeMono:0,freeColor:0,rateMono:0,rateColor:0},f));
@@ -1091,7 +1092,7 @@ function toggleMType(){
 function openMachineModal(cid,mid,mode){
   activeCustomerId=cid; editMachineId=mid||null; machineMode=mid?'edit':(mode||'add'); const c=custById(cid); const m=mid?c.machines.find(x=>x.id===mid):{type:'Printer',status:'Active',a3Factor:2,plotUnit:'sqm'};
   $('machineTitle').textContent=mid?'Edit Machine':'New Machine';
-  $('m_type').value=m.type||'Printer'; $('m_status').value=m.status||'Active'; $('m_dept').value=m.department||''; $('m_model').value=m.model||''; $('m_serial').value=m.serial||''; $('m_eqid').value=m.eqid||''; $('m_desc').value=m.desc||''; $('m_remarks').value=m.remarks||'';
+  $('m_type').value=m.type||'Printer'; $('m_status').value=m.status||'Active'; $('m_dept').value=m.department||''; $('m_model').value=m.model||''; $('m_serial').value=m.serial||''; $('m_eqid').value=m.eqid||''; $('m_desc').value=m.desc||''; $('m_remarks').value=m.remarks||''; $('m_start').value=m.startDate||''; $('m_start').dataset.auto=m.startDate?'':'1'; $('m_end').value=m.endDate||''; $('m_end').dataset.auto=m.endDate?'':'1';
   fillCycle('m',m); ['freeMono','freeColor','rateMono','rateColor','freePlot','ratePlot','rateA0','rateA1','rateA2'].forEach(k=>{ $('m_'+k).value=m[k]||''; });
   $('m_brand').value=m.brand||(m.model?m.model.split(' ')[0]:''); fillModels(); $('m_repl').checked=false; replTarget=null; $('m_rsr').value=''; $('m_rdate').value=''; $('replInfo').textContent=''; $('replBox').style.display='none'; replSelfId=mid||null; $('replWrap').style.display=''; ['rf_ms','rf_ms3','rf_cs','rf_cs3','ro_ms','ro_ms3','ro_cs','ro_cs3'].forEach(i=>{ $(i).value=''; }); $('m_rcont').checked=true; $('m_fb').value=m.freeBasis||''; holder=null; $('holderBox').style.display='none';
   const rp=machineMode==='replace'; $('replWrap').style.display=machineMode==='add'?'none':''; $('m_repl').disabled=rp; $('machineTitle').textContent=mid?'Edit Machine':(rp?'Replacement Machine — same department, same contract':'New Machine');
@@ -1101,6 +1102,7 @@ function openMachineModal(cid,mid,mode){
 function saveMachine(){
   const c=custById(activeCustomerId); if(!c) return; let model=$('m_model').value.trim(); const brandIn=$('m_brand').value.trim(); if(model&&brandIn&&!model.toLowerCase().startsWith(brandIn.toLowerCase())) model=brandIn+' '+model; if(!model){ toast('Enter a machine model.',true); return; }
   if(machineMode==='replace'&&!replTarget){ toast('Select the machine being replaced.',true); return; }
+  { const ds=$('m_start').value, de=$('m_end').value; if(ds&&de&&de<ds){ toast('Machine end date is before its start date.',true); return; } }
   if(machineMode==='add'&&holder){ const a=(document.querySelector('input[name=hAct]:checked')||{}).value; if(!a){ toast('This Sr.# already exists at '+holder.c.name+' — choose what should happen to it.',true); return; } if(a!=='here'){ applyHolder(); return; } }
   let kid=$('m_contract').value;
   if(kid==='__new'){ const s=$('mk_start').value, e=$('mk_end').value, dep=$('m_dept').value.trim();
@@ -1108,7 +1110,7 @@ function saveMachine(){
     const nk=Object.assign(kBase(),{id:newKid(),ref:$('mk_ref').value.trim()||((dep||c.name)+' Contract'),type:$('mk_type').value,start:s,end:e}); c.contracts.push(nk); kid=nk.id; }
   else if(!c.contracts.some(k=>k.id===kid)) kid=c.contracts[0].id;
   const num=id=>parseFloat($(id).value)||0; const a3=parseFloat($('m_a3').value);
-  const o=Object.assign({id:editMachineId||uid(),contractId:kid,type:$('m_type').value,status:$('m_status').value,department:$('m_dept').value.trim(),model,serial:$('m_serial').value.trim(),eqid:$('m_eqid').value.trim(),desc:$('m_desc').value.trim(),remarks:$('m_remarks').value.trim(),
+  const o=Object.assign({id:editMachineId||uid(),contractId:kid,type:$('m_type').value,status:$('m_status').value,department:$('m_dept').value.trim(),model,serial:$('m_serial').value.trim(),eqid:$('m_eqid').value.trim(),desc:$('m_desc').value.trim(),remarks:$('m_remarks').value.trim(),startDate:$('m_start').value||undefined,endDate:$('m_end').value||undefined,
     a3Factor:Number.isFinite(a3)?a3:2,plotUnit:$('m_plotUnit').value,freeBasis:$('m_fb').value,freeMono:num('m_freeMono'),freeColor:num('m_freeColor'),rateMono:num('m_rateMono'),rateColor:num('m_rateColor'),freePlot:num('m_freePlot'),ratePlot:num('m_ratePlot'),rateA0:num('m_rateA0'),rateA1:num('m_rateA1'),rateA2:num('m_rateA2'),readings:[],events:[]},readCycle('m'));
   if(editMachineId){ const i=c.machines.findIndex(x=>x.id===editMachineId); o.readings=c.machines[i].readings; o.events=c.machines[i].events; c.machines[i]=Object.assign({},c.machines[i],o); applyReplacement(c.machines[i]); } else{ c.machines.push(o); applyReplacement(o); applyHere(o); }
   addModel({model,brand:brandIn}); save(); closeModal('machineOverlay'); renderCustomers(); toast('Machine saved.');
@@ -1155,7 +1157,10 @@ const plusYear=iso=>{ const d=new Date(iso+'T00:00:00Z'); d.setUTCFullYear(d.get
 function fillContractSel(c,m){ const sel=m.contractId&&c.contracts.some(k=>k.id===m.contractId)?m.contractId:(window.ctPreK&&c.contracts.some(k=>k.id===window.ctPreK)?window.ctPreK:c.contracts[0].id);
   $('m_contract').innerHTML=c.contracts.map(k=>`<option value="${k.id}">${esc(kLabel(c,k))} · ${esc(k.type)} · ${k.start?fmtDMY(k.start):'—'} → ${k.end?fmtDMY(k.end):'—'} (${c.machines.filter(x=>x.contractId===k.id).length} machine(s))</option>`).join('')+'<option value="__new">➕ New contract for this machine…</option>';
   $('m_contract').value=sel; $('mk_ref').value=''; $('mk_type').value='Lease'; $('mk_start').value=''; $('mk_end').value=''; mkChange(); }
-function mkChange(){ $('mkNew').style.display=$('m_contract').value==='__new'?'':'none'; }
+function mkChange(){ $('mkNew').style.display=$('m_contract').value==='__new'?'':'none'; mkAutoDates(); }
+/* machine start / end default to its contract's dates (editable) */
+function mkAutoDates(){ const c=custById(activeCustomerId); if(!c) return; const v=$('m_contract').value; let s='',e=''; if(v==='__new'){ s=$('mk_start').value; e=$('mk_end').value; } else { const k=c.contracts.find(x=>x.id===v); if(k){ s=k.start||''; e=k.end||''; } }
+  [['m_start',s],['m_end',e]].forEach(([id,val])=>{ const el=$(id); if(!el) return; if(!el.value||el.dataset.auto==='1'){ el.value=val; el.dataset.auto='1'; } }); }
 function mkSuggest(){ if(machineMode==='edit') return; const c=custById(activeCustomerId), d=$('m_dept').value.trim().toLowerCase(); if(!c||!d||$('m_contract').value==='__new') return;
   const ks=[...new Set(c.machines.filter(x=>(x.department||'').toLowerCase()===d).map(x=>x.contractId))]; if(ks.length===1&&c.contracts.some(k=>k.id===ks[0])){ $('m_contract').value=ks[0]; mkChange(); } }
 function openContracts(cid,kid,mode){ activeCustomerId=cid; kcBack(); openModal('contractOverlay'); if(kid) editContract(kid,mode); }
@@ -1629,16 +1634,16 @@ function renderDash(){
   const t=todayISO(), ym=t.slice(0,7); let out=0,over=0; DB.customers.forEach(c=>{ const a=acct(c.id); out+=Math.max(0,a.balance); over+=a.overdue; });
   const actM=DB.customers.reduce((s,c)=>s+c.machines.filter(isActive).length,0);
   let pend=0; DB.customers.forEach(c=>c.machines.filter(isActive).forEach(m=>{ if(!m.readings.some(r=>r.month===ym)) pend++; }));
-  const billed=DB.invoices.filter(v=>v.date.slice(0,7)===ym).reduce((s,v)=>s+v.total,0);
+  const BD=rpDocs(), billed=BD.filter(v=>String(v.date).slice(0,7)===ym).reduce((s,v)=>s+v.amt,0);
   const mons=[]; for(let i=5;i>=0;i--){ const d=new Date(); d.setDate(1); d.setMonth(d.getMonth()-i); mons.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')); }
-  const rev=mons.map(m=>({m,v:DB.invoices.filter(x=>x.date.slice(0,7)===m).reduce((s,x)=>s+x.total,0)})), mx=Math.max(1,...rev.map(x=>x.v));
-  const byC={}; DB.invoices.forEach(v=>{ byC[v.cname]=(byC[v.cname]||0)+v.total; }); const top=Object.entries(byC).sort((a,b)=>b[1]-a[1]).slice(0,6), tm=Math.max(1,...top.map(x=>x[1]));
+  const rev=mons.map(m=>({m,v:BD.filter(x=>String(x.date).slice(0,7)===m).reduce((s,x)=>s+x.amt,0)})), mx=Math.max(1,...rev.map(x=>x.v));
+  const byC={}; BD.forEach(v=>{ const n=cn(v.cid); byC[n]=(byC[n]||0)+v.amt; }); const top=Object.entries(byC).sort((a,b)=>b[1]-a[1]).slice(0,6), tm=Math.max(1,...top.map(x=>x[1]));
   const bar=(l,v,m)=>`<div class="barrow"><span>${esc(l)}</span><div class="bar"><i style="width:${Math.round(v/m*100)}%"></i></div><b style="text-align:right">${fmtM(v)}</b></div>`;
   const alerts=contractAlerts(60).map(x=>`<li><span>${esc(x.c.name)} · ${esc(kLabel(x.c,x.k))}</span><span class="badge ${x.d<0?'bad':'warn'}">${x.d<0?'Expired '+(-x.d)+' days ago':'Ends in '+x.d+' days'}</span></li>`);
   const use=[]; DB.customers.forEach(c=>c.machines.filter(isActive).forEach(m=>{ const rs=m.readings.slice().sort((a,b)=>a.month.localeCompare(b.month)); if(rs.length<3) return; const u=usage(m,rc(m,rs[rs.length-1])); const prev=rs.slice(0,-1).map(r=>usage(m,rc(m,r))); const avg=prev.reduce((s,x)=>s+x,0)/prev.length;
     if(avg>0&&u<avg*0.3) use.push(`<li><span>${esc(c.name)} · ${esc(m.model)} ${esc(m.serial||'')}</span><span class="badge bad">Low: ${fmtN(u)} vs avg ${fmtN(avg)}</span></li>`); else if(avg>0&&u>avg*2) use.push(`<li><span>${esc(c.name)} · ${esc(m.model)} ${esc(m.serial||'')}</span><span class="badge warn">High: ${fmtN(u)} vs avg ${fmtN(avg)}</span></li>`); }));
   $('dashBody').innerHTML=`<div class="kpis">
-    <div class="card kpi"><span>Billed this month</span><b>AED ${fmtM(billed)}</b><small>${DB.invoices.filter(v=>v.date.slice(0,7)===ym).length} invoice(s)</small></div>
+    <div class="card kpi"><span>Billed this month</span><b>AED ${fmtM(billed)}</b><small>${BD.filter(v=>String(v.date).slice(0,7)===ym).length} invoice(s) · lease + sales</small></div>
     <div class="card kpi"><span>Outstanding</span><b>AED ${fmtM(out)}</b><small>Overdue AED ${fmtM(over)}</small></div>
     <div class="card kpi"><span>Active machines</span><b>${actM}</b><small>${DB.customers.length} customer(s)</small></div>
     <div class="card kpi"><span>Readings pending (${ym})</span><b>${pend}</b><small><a href="#" onclick="showTab('run');return false" style="color:var(--amber-d)">Open reading run</a></small></div></div>
@@ -2345,7 +2350,8 @@ function renderContracts(){ ctRender(); }
 function ctRender(){ if($('v-contracts').style.display==='none') return; ({A:ctList,L:ctList,S:ctList,F:ctList,D:ctDetail,M:ctMachines,R:ctRenewals,B:renderDetail})[ctV](); }
 function ctOpen(cid,kid){ ctCid=cid; ctKid=kid; window.ctPreK=kid; go('contracts','D'); window.ctPreK=kid; }
 function ctForCust(cid){ ctFilterCust=cid; go('contracts','A'); }
-function ctNew(){ $('ctn_cust').innerHTML=DB.customers.map(c=>'<option value="'+c.id+'">'+esc(c.name)+'</option>').join(''); if($('ct_cust').value) $('ctn_cust').value=$('ct_cust').value; $('ctn_type').value=({L:'Lease',S:'Sale (ORS)',F:'AMC'})[ctV]||'Lease'; openModal('ctNewOv'); }
+function ctNew(){ const fcid=$('ct_cust').value; if(fcid){ openContracts(fcid,'__new'); $('kc_type').value=({L:'Lease',S:'Sale (ORS)',F:'AMC'})[ctV]||'Lease'; kcType(); return; }
+  $('ctn_cust').innerHTML=DB.customers.map(c=>'<option value="'+c.id+'">'+esc(c.name)+'</option>').join(''); if($('ct_cust').value) $('ctn_cust').value=$('ct_cust').value; $('ctn_type').value=({L:'Lease',S:'Sale (ORS)',F:'AMC'})[ctV]||'Lease'; openModal('ctNewOv'); }
 function ctNewGo(){ const cid=$('ctn_cust').value; if(!cid){ toast('Select a customer.',true); return; } closeModal('ctNewOv'); openContracts(cid,'__new'); $('kc_type').value=$('ctn_type').value; kcType(); }
 function ctList(){ $('ct_h').textContent=CT_TITLES[ctV]; $('ct_type').style.display=ctV==='A'?'':'none'; slOpt($('ct_cust'),true); if(ctFilterCust){ $('ct_cust').value=ctFilterCust; ctFilterCust=''; }
   const q=($('ct_q').value||'').toLowerCase(), cf=$('ct_cust').value, sf=$('ct_st').value, tf=ctV==='A'?$('ct_type').value:'', nd=DB.notifyDays||60, rows=[];
@@ -2752,8 +2758,8 @@ document.addEventListener('click',e=>{ if(!e.target.closest('.bellwrap')) closeB
   window.slEdit=function(id){ _edit.apply(this,arguments); const s=DB.sales.find(x=>x.id===id); try{ if(!s||s.inv){ box().innerHTML=''; fill(s); } else { fill(null); slLegMode('add'); } }catch(e){} };
 })();
 </script>
-<script>window.XA_VER='20261021b';window.addEventListener('error',function(e){try{if(!/addons|security/.test(e.filename||''))return;var b=document.getElementById('xaErr');if(!b){b=document.createElement('div');b.id='xaErr';b.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#b3261e;color:#fff;padding:8px 12px;font:13px Arial';document.body.appendChild(b);}b.innerHTML='⚠ Part of the update failed to load ('+String(e.filename).split('/').pop().split('?')[0]+' line '+e.lineno+'): '+String(e.message).replace(/</g,'&lt;')+' — please send me a screenshot of this. <a href="#" style="color:#fff" onclick="this.parentNode.remove();return false">✕</a>';}catch(x){}});</script><script src="/addons.js?v=20261021b"></script><script src="/addons2.js?v=20261021b"></script><script src="/addons3.js?v=20261021b"></script><script src="/addons4.js?v=20261021b"></script><script src="/addons5.js?v=20261021b"></script>
-<script src="/addons6.js?v=20261021b"></script>
-<script src="/addons7.js?v=20261021b"></script>
-<script src="/addons8.js?v=20261021b"></script><script src="/addons9.js?v=20261021b"></script><script src="/addons10.js?v=20261021b"></script><script src="/addons11.js?v=20261021b"></script><script src="/security.js?v=20261021b"></script>
+<script>window.XA_VER='20261021c';window.addEventListener('error',function(e){try{if(!/addons|security/.test(e.filename||''))return;var b=document.getElementById('xaErr');if(!b){b=document.createElement('div');b.id='xaErr';b.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#b3261e;color:#fff;padding:8px 12px;font:13px Arial';document.body.appendChild(b);}b.innerHTML='⚠ Part of the update failed to load ('+String(e.filename).split('/').pop().split('?')[0]+' line '+e.lineno+'): '+String(e.message).replace(/</g,'&lt;')+' — please send me a screenshot of this. <a href="#" style="color:#fff" onclick="this.parentNode.remove();return false">✕</a>';}catch(x){}});</script><script src="/addons.js?v=20261021c"></script><script src="/addons2.js?v=20261021c"></script><script src="/addons3.js?v=20261021c"></script><script src="/addons4.js?v=20261021c"></script><script src="/addons5.js?v=20261021c"></script>
+<script src="/addons6.js?v=20261021c"></script>
+<script src="/addons7.js?v=20261021c"></script>
+<script src="/addons8.js?v=20261021c"></script><script src="/addons9.js?v=20261021c"></script><script src="/addons10.js?v=20261021c"></script><script src="/addons11.js?v=20261021c"></script><script src="/security.js?v=20261021c"></script>
 </body></html>

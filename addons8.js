@@ -76,7 +76,7 @@ XA.reg('biz',{render(){ const t=today(), in60=addD(t,60), mo=t.slice(0,7), C=DB.
  const Q=(DB.quotes||[]).filter(q=>{ const s=typeof qStat==='function'?qStat(q):q.status; return s==='Sent'||s==='Draft'; }), qv=Q.reduce((s,q)=>{ try{ return s+qTot(q).total; }catch(e){ return s; } },0), L=arr('leads').filter(l=>l.st!=='Won'&&l.st!=='Lost');
  const POs=arr('pos').map(p=>stOf(p)), bills=arr('purchases'), owe=bills.reduce((s,b)=>s+num(b.total)-(b.pays||[]).reduce((a,p)=>a+num(p.amt!=null?p.amt:p.amount),0),0), low=(DB.stock||[]).filter(s=>num(s.qty)<=num(s.min!=null?s.min:2));
  let rec=0,od=0; C.forEach(c=>{ try{ const a=acct(c.id); rec+=num(a.balance); od+=num(a.overdue); }catch(e){} });
- const inv=(DB.invoices||[]).filter(i=>String(i.date).startsWith(mo)).reduce((s,i)=>s+num(i.total),0);
+ const inv=rpDocs().filter(i=>String(i.date).startsWith(mo)).reduce((s,i)=>s+num(i.amt),0);
  return H('Business Overview — Lease · Sales · Service · Purchases · Accounts')+'<div style="display:flex;flex-wrap:wrap;gap:12px">'
  +card('📑','Lease & contracts',[['Active contracts',act.length],['Expiring in 60 days',exp.length,exp.length>0],['Ended / to renew',ended.length,ended.length>0],['Machines under contract',nM]],[['Contracts',GO('contracts','A')],['Renewals',GO('contracts','R')],['Reading run',GO('run')]])
  +card('🛠','Service',[['Open tickets',open.length],['SLA breached',br.length,br.length>0],['Customer rating',av]],[['Tickets',GO('tickets')],['SLA',GO('xa','sla')],['Machine health',GO('xa','hlth')],['Scan QR','XA.qrScan();return false']])
