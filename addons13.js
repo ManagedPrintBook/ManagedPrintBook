@@ -92,51 +92,79 @@ XA.impGo=()=>{ const on=[...document.querySelectorAll('.xi_on:checked')].map(c=>
     c.machines.push(mac); nm++; ex[normSr(r.serial)]=c.name; if(typeof addModel==='function') addModel({model:mac.model,brand:r.brand}); });
   save(); try{ renderAll(); }catch(e){} IMP.rows=[]; toast(nm+' machine(s), '+nk+' new contract(s) and '+nc+' new customer(s) imported.'); XA.refresh(); };
 
-/* ---------------- 3. BILLING CALENDAR (month-wise) + reading collected ---------------- */
-/* schedule of one machine: invoice 1 on start date, then every cycle until the contract end date */
-function schedule(m){ const st=m.startDate||m.billAnchor; if(!st) return []; const step=stepOf(m); const end=m.endDate||''; const out=[];
-  if(!step){ out.push({n:1,date:st,of:1}); return out; }
-  for(let i=0;i<400;i++){ const d=addMonthsISO(st,i*step); if(end&&d>end) break; out.push({n:i+1,date:d}); }
-  out.forEach(x=>{ x.of=out.length; }); return out; }
+/* ---------------- 3. BILLING CALENDAR / READING TRACKER (all lease customers) ---------------- */
+const num=v=>parseFloat(v)||0;
+const kOf=(c,m)=>(c.contracts||[]).find(x=>x.id===m.contractId)||(c.contracts||[])[0]||{};
+const isLease=(c,m,k)=>/lease/i.test(k.type||'')||num(m.monthlyLease)>0||num(c.monthlyLease)>0;
+const anchorOf=(c,m,k)=>m.startDate||k.start||'';
+function leaseStep(c,m){ const own=num(m.monthlyLease)>0||m.billM||m.billQ||m.billY; const cyc=own?m.leaseCycle:(num(c.monthlyLease)>0?c.leaseCycle:m.leaseCycle); return CYC[String(cyc||'').toLowerCase()]||1; }
+function hasExcess(c,m){ return [m.rateMono,m.rateColor,m.ratePlot,m.rateA0,m.rateA1,m.rateA2,c.rateMono,c.rateColor].some(v=>num(v)>0); }
+function excessStep(c,m){ if(!hasExcess(c,m)) return 0; const cyc=num(m.rateMono)+num(m.rateColor)+num(m.ratePlot)>0?m.excessCycle:(c.excessCycle||m.excessCycle); return CYC[String(cyc||'').toLowerCase()]||0; }
+/* reading dates of one machine: lease bill dates and excess bill dates, from the contract start date until the contract end date */
+function schedule(m,c,k){ c=c||{}; k=k||{}; const st=anchorOf(c,m,k); if(!st) return []; const end=m.endDate||k.end||''; const lim=end||addMonthsISO(todayISO(),24); const by={};
+  const gen=(step,tag)=>{ if(!step) return; for(let i=0;i<600;i++){ const d=addMonthsISO(st,i*step); if(d>lim) break; (by[d]=by[d]||{}).date=d; by[d][tag]=true; } };
+  gen(leaseStep(c,m),'L'); gen(excessStep(c,m),'E');
+  return Object.values(by).sort((a,b)=>a.date.localeCompare(b.date)).map(x=>({date:x.date,tag:x.L&&x.E?'Lease + Excess':x.L?'Lease':'Excess'})); }
 XA.schedule=schedule;
 const marks=m=>(m.readMarks=m.readMarks||{});
 function collected(m,row){ const mk=marks(m)[row.date]; if(mk&&mk.done) return {by:'mark',on:mk.on}; const ym=row.date.slice(0,7); const r=(m.readings||[]).find(x=>x.month===ym); if(r) return {by:'reading',on:r.date||''}; return null; }
-function allRows(f){ const rows=[]; DB.customers.forEach(c=>{ if(f.grp&&(c.group||'')!==f.grp) return; if(f.cust&&c.id!==f.cust) return;
-  c.machines.forEach(m=>{ if(m.status!=='Active'&&m.status!=='Replaced') return; if(m.status==='Replaced') return; const k=(c.contracts||[]).find(x=>x.id===m.contractId)||c.contracts[0]||{};
-    schedule(m).forEach(s=>{ rows.push({c,m,k,date:s.date,n:s.n,of:s.of,col:collected(m,s)}); }); }); }); return rows.sort((a,b)=>a.date.localeCompare(b.date)||a.c.name.localeCompare(b.c.name)); }
-const BC={view:'month',month:todayISO().slice(0,7),grp:'',cust:'',st:'all',q:''};
-function filt(rows){ const q=BC.q.toLowerCase(); return rows.filter(r=>(BC.st==='all'||(BC.st==='done')===!!r.col)&&(!q||(r.c.name+' '+(r.m.department||'')+' '+r.m.model+' '+r.m.serial+' '+(r.k.ref||'')+' '+(r.m.eqid||'')).toLowerCase().includes(q))); }
-function groups(){ return [...new Set(DB.customers.map(c=>c.group).filter(Boolean))]; }
+const BC={view:'month',month:todayISO().slice(0,7),grp:'',cust:'',st:'all',kind:'lease',q:''};
+function build(){ const rows=[],missing=[]; const q=BC.q.toLowerCase();
+  DB.customers.forEach(c=>{ if(BC.grp&&(c.group||'')!==BC.grp) return; if(BC.cust&&c.id!==BC.cust) return;
+    c.machines.forEach(m=>{ if(m.status!=='Active') return; const k=kOf(c,m); if(BC.kind==='lease'&&!isLease(c,m,k)) return;
+      if(q&&!(c.name+' '+(m.department||'')+' '+(m.model||'')+' '+(m.serial||'')+' '+(k.ref||'')+' '+(m.eqid||'')).toLowerCase().includes(q)) return;
+      const sc=schedule(m,c,k); if(!sc.length){ missing.push({c,m,k}); return; }
+      sc.forEach(s=>rows.push({c,m,k,date:s.date,tag:s.tag,col:collected(m,s)})); }); });
+  rows.sort((a,b)=>a.date.localeCompare(b.date)||a.c.name.localeCompare(b.c.name)||(a.m.department||'').localeCompare(b.m.department||'')); return {rows,missing}; }
+const stOK=r=>BC.st==='all'||(BC.st==='done')===!!r.col;
+const groups=()=>[...new Set(DB.customers.map(c=>c.group).filter(Boolean))];
+const sel=(id,opts,val,fn)=>'<select id="'+id+'" onchange="'+fn+'" style="width:auto">'+opts.map(o=>'<option value="'+esc(o[0])+'"'+(o[0]===val?' selected':'')+'>'+esc(o[1])+'</option>').join('')+'</select>';
+const tabBtn=(v,l)=>'<button class="btn sm '+(BC.view===v?'':'ghost')+'" onclick="XA.bcSet(\'view\',\''+v+'\')">'+l+'</button>';
 XA.reg('bcal',{title:'Billing Calendar',render(){
-  const G=groups(), rows0=allRows({grp:BC.grp,cust:BC.cust});
-  const sel=(id,opts,val,fn)=>'<select id="'+id+'" onchange="'+fn+'" style="width:auto">'+opts.map(o=>'<option value="'+esc(o[0])+'"'+(o[0]===val?' selected':'')+'>'+esc(o[1])+'</option>').join('')+'</select>';
-  const bar='<div class="sec" style="margin-top:0;flex-wrap:wrap;gap:8px"><h2>Billing Calendar</h2><span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;align-items:center">'
-   +sel('bc_view',[['month','By month'],['machine','By machine (all invoices)']],BC.view,'XA.bcSet(\'view\',this.value)')
+  const D=build(), G=groups();
+  const head='<div class="sec" style="margin-top:0;flex-wrap:wrap;gap:8px"><h2>Billing Calendar · Reading Tracker</h2><span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;align-items:center">'
+   +sel('bc_kind',[['lease','Lease customers'],['all','All active machines']],BC.kind,'XA.bcSet(\'kind\',this.value)')
    +sel('bc_grp',[['','All groups']].concat(G.map(x=>[x,x])),BC.grp,'XA.bcSet(\'grp\',this.value)')
    +sel('bc_cust',[['','All customers']].concat(DB.customers.filter(c=>!BC.grp||c.group===BC.grp).map(c=>[c.id,c.name])),BC.cust,'XA.bcSet(\'cust\',this.value)')
-   +sel('bc_st',[['all','All'],['pend','Reading pending'],['done','Reading collected']],BC.st,'XA.bcSet(\'st\',this.value)')
-   +'<input id="bc_q" placeholder="Search dept, model, Sr.#, contract…" value="'+esc(BC.q)+'" style="width:230px" oninput="XA.bcQ(this.value)"></span></div>'
-   +'<div class="hint" style="margin:0 0 8px">First invoice is on the machine’s contract start date, then every billing cycle (e.g. start 08-09-2025, quarterly → 08-09-2025, 08-12-2025, 08-03-2026, 08-06-2026 …) until the contract end date. Tick <b>Reading collected</b> once that period’s meter reading is taken (a reading saved for that month in Reading Run is counted automatically).</div>';
-  if(BC.view==='machine') return bar+byMachine();
-  return bar+byMonth(rows0); }});
-function byMonth(rows0){
-  const y=+BC.month.slice(0,4), strip=[]; for(let mo=1;mo<=12;mo++){ const ym=y+'-'+pad(mo), L=rows0.filter(r=>r.date.slice(0,7)===ym), d=L.filter(r=>r.col).length; strip.push('<button class="btn sm '+(ym===BC.month?'':'ghost')+'" style="min-width:86px;text-align:center" onclick="XA.bcSet(\'month\',\''+ym+'\')">'+MON[mo-1]+'<br><small>'+(L.length?d+'/'+L.length+' read':'—')+'</small></button>'); }
-  const nav='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><button class="btn sm ghost" onclick="XA.bcSet(\'month\',\''+(y-1)+'-'+BC.month.slice(5)+'\')">◀</button><b style="font-size:1.1rem">'+y+'</b><button class="btn sm ghost" onclick="XA.bcSet(\'month\',\''+(y+1)+'-'+BC.month.slice(5)+'\')">▶</button><span style="display:flex;gap:4px;flex-wrap:wrap">'+strip.join('')+'</span></div>';
-  const L=filt(rows0.filter(r=>r.date.slice(0,7)===BC.month)), done=L.filter(r=>r.col).length, today=todayISO();
-  const tr=L.map(r=>{ const late=!r.col&&r.date<today; return '<tr><td><b>'+fmt(r.date)+'</b>'+(late?'<div><span class="badge bad">Past due</span></div>':'')+'</td><td>'+esc(r.c.name)+(r.c.group?'<div class="kdept">'+esc(r.c.group)+'</div>':'')+'</td><td>'+esc(r.m.department||'—')+'</td><td>'+esc(r.m.model)+'<div class="kdept">'+esc(r.m.serial||'')+'</div></td><td>'+esc(r.k.ref||'—')+'<div class="kdept">'+fmt(r.m.startDate)+' → '+fmt(r.m.endDate)+'</div></td><td>Invoice '+r.n+' of '+r.of+'<div class="kdept">'+esc(r.m.leaseCycle||'')+'</div></td><td>'+tick(r)+'</td><td><button class="btn sm ghost" onclick="XA.bcRead(\''+r.c.id+'\',\''+r.m.id+'\',\''+r.date.slice(0,7)+'\')">Enter reading</button></td></tr>'; }).join('');
-  return '<div class="card"><div class="pad">'+nav+'<b>'+monLabel(BC.month)+'</b> — '+L.length+' invoice(s) due · <span class="badge good">'+done+' reading collected</span> <span class="badge warn">'+(L.length-done)+' pending</span></div>'
-   +(L.length?'<div class="tw"><table><thead><tr><th>Billing date</th><th>Customer</th><th>Department</th><th>Machine</th><th>Contract</th><th>Invoice</th><th>Reading collected</th><th></th></tr></thead><tbody>'+tr+'</tbody></table></div>':'<div class="empty">No invoices fall in this month.</div>')+'</div>'; }
-function tick(r){ const id='bk_'+r.m.id+'_'+r.date; const auto=r.col&&r.col.by==='reading';
-  return '<label class="tk" style="margin:0;cursor:'+(auto?'default':'pointer')+'"><input type="checkbox" '+(r.col?'checked':'')+(auto?' disabled':'')+' onchange="XA.bcMark(\''+r.c.id+'\',\''+r.m.id+'\',\''+r.date+'\',this.checked)" style="width:auto"> '+(r.col?'<span class="badge good">Collected'+(r.col.on?' '+fmt(String(r.col.on).slice(0,10)):'')+(auto?' (reading saved)':'')+'</span>':'<span class="badge warn">Pending</span>')+'</label>'; }
-function byMachine(){ let out=''; DB.customers.forEach(c=>{ if(BC.grp&&c.group!==BC.grp) return; if(BC.cust&&c.id!==BC.cust) return;
-  c.machines.forEach(m=>{ if(m.status!=='Active') return; const k=(c.contracts||[]).find(x=>x.id===m.contractId)||c.contracts[0]||{}; const rows=schedule(m).map(s=>({c,m,k,date:s.date,n:s.n,of:s.of,col:collected(m,s)})); const L=filt(rows); const q=BC.q.toLowerCase(); if(q&&!(c.name+' '+(m.department||'')+' '+m.model+' '+m.serial+' '+(k.ref||'')).toLowerCase().includes(q)) return; if(!L.length) return;
-    out+='<div class="card" style="margin-bottom:10px"><div class="pad"><b>'+esc(c.name)+'</b> · '+esc(m.department||'—')+' · '+esc(m.model)+' <span class="kdept">'+esc(m.serial||'')+'</span><div class="kdept">'+esc(k.ref||'')+' · '+fmt(m.startDate)+' → '+fmt(m.endDate)+' · '+esc(m.leaseCycle||'')+' · '+rows.filter(r=>r.col).length+'/'+rows.length+' readings collected</div></div><div class="tw"><table><thead><tr><th>#</th><th>Billing date</th><th>Month</th><th>Reading collected</th><th></th></tr></thead><tbody>'
-     +L.map(r=>'<tr><td>'+r.n+'/'+r.of+'</td><td>'+fmt(r.date)+'</td><td>'+monLabel(r.date.slice(0,7))+'</td><td>'+tick(r)+'</td><td><button class="btn sm ghost" onclick="XA.bcRead(\''+c.id+'\',\''+m.id+'\',\''+r.date.slice(0,7)+'\')">Enter reading</button></td></tr>').join('')+'</tbody></table></div></div>'; }); });
-  return out||'<div class="card pad"><div class="empty">No machines with a start date match. Add a start date on the machine, or import from Excel.</div></div>'; }
+   +sel('bc_st',[['all','All readings'],['pend','Pending'],['done','Collected']],BC.st,'XA.bcSet(\'st\',this.value)')
+   +'<input id="bc_q" placeholder="Search customer, dept, model, Sr.#…" value="'+esc(BC.q)+'" style="width:230px" oninput="XA.bcQ(this.value)"></span></div>'
+   +'<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">'+tabBtn('month','Month list')+tabBtn('year','Year overview')+tabBtn('missing','Missing start dates'+(D.missing.length?' ('+D.missing.length+')':''))+'</div>';
+  return head+(BC.view==='year'?yearView(D):BC.view==='missing'?missingView(D):monthView(D)); }});
+function monthNav(){ const y=+BC.month.slice(0,4), mo=+BC.month.slice(5); const prev=addMonthsISO(BC.month+'-01',-1).slice(0,7), next=addMonthsISO(BC.month+'-01',1).slice(0,7);
+  return '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn sm ghost" onclick="XA.bcSet(\'month\',\''+prev+'\')">◀</button><b style="font-size:1.15rem;min-width:110px;text-align:center">'+MON[mo-1]+' '+y+'</b><button class="btn sm ghost" onclick="XA.bcSet(\'month\',\''+next+'\')">▶</button><button class="btn sm ghost" onclick="XA.bcSet(\'month\',\''+todayISO().slice(0,7)+'\')">This month</button><button class="btn sm ghost" style="margin-left:auto" onclick="XA.bcExport()">Export month to Excel</button></div>'; }
+function monthView(D){ const today=todayISO(), all=D.rows.filter(r=>r.date.slice(0,7)===BC.month), L=all.filter(stOK), done=all.filter(r=>r.col).length;
+  const from=addMonthsISO(today,-6), od=D.rows.filter(r=>!r.col&&r.date<today.slice(0,7)+'-01'&&r.date>=from).length;
+  const kp=(b,l,c)=>'<div class="stat"'+(c?' style="border-color:'+c+'"':'')+'><b>'+b+'</b><span>'+l+'</span></div>';
+  const stats='<div class="stats" style="margin:10px 0">'+kp(all.length,'Readings due in '+monLabel(BC.month))+kp(done,'Collected','#16a34a')+kp(all.length-done,'Pending','#d97706')+kp(od,'Overdue (earlier 6 months)',od?'#dc2626':'')+'</div>';
+  let body=''; let last='';
+  L.forEach(r=>{ if(r.c.id!==last){ last=r.c.id; const mine=all.filter(x=>x.c.id===r.c.id); body+='<tr style="background:var(--bg2,#f1f5f9)"><td colspan="7"><b>'+esc(r.c.name)+'</b>'+(r.c.group?' <span class="kdept">· '+esc(r.c.group)+'</span>':'')+' <span class="badge '+(mine.every(x=>x.col)?'good':'warn')+'" style="float:right">'+mine.filter(x=>x.col).length+'/'+mine.length+' collected</span></td></tr>'; }
+    const late=!r.col&&r.date<today;
+    body+='<tr><td><b>'+fmt(r.date)+'</b>'+(late?'<div><span class="badge bad">Past due</span></div>':'')+'</td><td>'+esc(r.m.department||'—')+'</td><td>'+esc(r.m.model||'')+'<div class="kdept">'+esc(r.m.serial||'')+'</div></td><td>'+esc(r.k.ref||'—')+'<div class="kdept">'+fmt(anchorOf(r.c,r.m,r.k))+' → '+fmt(r.m.endDate||r.k.end)+'</div></td><td>'+esc(r.tag)+'</td><td>'+tick(r)+'</td><td><button class="btn sm ghost" onclick="XA.bcRead(\''+r.c.id+'\',\''+r.m.id+'\',\''+r.date.slice(0,7)+'\')">Enter reading</button></td></tr>'; });
+  return '<div class="card"><div class="pad">'+monthNav()+stats+'</div>'+(L.length?'<div class="tw"><table><thead><tr><th>Date</th><th>Department</th><th>Machine</th><th>Contract</th><th>Reading for</th><th>Reading collected</th><th></th></tr></thead><tbody>'+body+'</tbody></table></div>':'<div class="empty">Nothing due in this month'+(BC.st!=='all'||BC.q?' for the current filters':'')+'.</div>')+'</div>'; }
+function tick(r){ const auto=r.col&&r.col.by==='reading';
+  return '<label style="margin:0;display:flex;gap:6px;align-items:center;cursor:'+(auto?'default':'pointer')+'"><input type="checkbox" '+(r.col?'checked':'')+(auto?' disabled':'')+' onchange="XA.bcMark(\''+r.c.id+'\',\''+r.m.id+'\',\''+r.date+'\',this.checked)" style="width:auto">'+(r.col?'<span class="badge good">Collected'+(r.col.on?' '+fmt(String(r.col.on).slice(0,10)):'')+(auto?' · reading saved':'')+'</span>':'<span class="badge warn">Pending</span>')+'</label>'; }
+function yearView(D){ const y=+BC.month.slice(0,4), today=todayISO(); const byM={};
+  D.rows.filter(r=>r.date.slice(0,4)==y&&stOK(r)).forEach(r=>{ (byM[r.m.id]=byM[r.m.id]||{c:r.c,m:r.m,k:r.k,cells:{}}).cells[+r.date.slice(5,7)]=r; });
+  const list=Object.values(byM).sort((a,b)=>a.c.name.localeCompare(b.c.name)||(a.m.department||'').localeCompare(b.m.department||''));
+  const th=MON.map(x=>'<th style="text-align:center">'+x+'</th>').join(''); const tot=Array(13).fill(0), dn=Array(13).fill(0); let last='',body='';
+  list.forEach(o=>{ if(o.c.id!==last){ last=o.c.id; body+='<tr style="background:var(--bg2,#f1f5f9)"><td colspan="13"><b>'+esc(o.c.name)+'</b>'+(o.c.group?' <span class="kdept">· '+esc(o.c.group)+'</span>':'')+'</td></tr>'; }
+    let cells=''; for(let mo=1;mo<=12;mo++){ const r=o.cells[mo]; if(!r){ cells+='<td></td>'; continue; } tot[mo]++; let bg,txt,col; if(r.col){ dn[mo]++; bg='#dcfce7'; col='#166534'; txt='✓ '+r.date.slice(8); } else if(r.date<today){ bg='#fee2e2'; col='#991b1b'; txt='! '+r.date.slice(8); } else { bg='#fef3c7'; col='#92400e'; txt=r.date.slice(8); }
+      cells+='<td style="text-align:center;padding:2px"><button title="'+fmt(r.date)+' · '+esc(r.tag)+'" onclick="XA.bcJump(\''+r.date.slice(0,7)+'\')" style="border:0;border-radius:6px;background:'+bg+';color:'+col+';font-weight:600;padding:5px 8px;cursor:pointer;min-width:44px">'+txt+'</button></td>'; }
+    body+='<tr><td style="white-space:nowrap">'+esc(o.m.department||'—')+'<div class="kdept">'+esc(o.m.model||'')+' · '+esc(o.m.serial||'')+'</div></td>'+cells+'</tr>'; });
+  const foot='<tr><td><b>Collected / due</b></td>'+Array.from({length:12},(_,i)=>'<td style="text-align:center"><b>'+(tot[i+1]?dn[i+1]+'/'+tot[i+1]:'—')+'</b></td>').join('')+'</tr>';
+  return '<div class="card"><div class="pad" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn sm ghost" onclick="XA.bcSet(\'month\',\''+(y-1)+'-'+BC.month.slice(5)+'\')">◀</button><b style="font-size:1.15rem">'+y+'</b><button class="btn sm ghost" onclick="XA.bcSet(\'month\',\''+(y+1)+'-'+BC.month.slice(5)+'\')">▶</button><span class="kdept">Day of month shown · <span class="badge good">✓ collected</span> <span class="badge warn">upcoming</span> <span class="badge bad">! overdue</span> · click a cell to open that month</span></div>'
+   +(list.length?'<div class="tw"><table><thead><tr><th>Department / machine</th>'+th+'</tr></thead><tbody>'+body+foot+'</tbody></table></div>':'<div class="empty">No readings for '+y+' with the current filters.</div>')+'</div>'; }
+function missingView(D){ const body=D.missing.map(o=>'<tr><td>'+esc(o.c.name)+'</td><td>'+esc(o.m.department||'—')+'</td><td>'+esc(o.m.model||'')+'<div class="kdept">'+esc(o.m.serial||'')+'</div></td><td><input type="date" id="bs_'+o.m.id+'" style="width:auto"></td><td><button class="btn sm" onclick="XA.bcStart(\''+o.c.id+'\',\''+o.m.id+'\')">Save</button></td></tr>').join('');
+  return '<div class="card"><div class="pad"><div class="hint">These machines have no machine start date and no contract start date, so their reading dates cannot be worked out. Enter the date billing starts (the day of the month becomes the billing day).</div></div>'+(D.missing.length?'<div class="tw"><table><thead><tr><th>Customer</th><th>Department</th><th>Machine</th><th>Billing start date</th><th></th></tr></thead><tbody>'+body+'</tbody></table></div>':'<div class="empty">Every machine has a start date. ✓</div>')+'</div>'; }
 XA.bcSet=(k,v)=>{ BC[k]=v; if(k==='grp') BC.cust=''; XA.refresh(); };
+XA.bcJump=ym=>{ BC.month=ym; BC.view='month'; XA.refresh(); };
 let qT; XA.bcQ=v=>{ BC.q=v; clearTimeout(qT); qT=setTimeout(()=>{ XA.refresh(); const i=g('bc_q'); if(i){ i.focus(); i.setSelectionRange(v.length,v.length); } },350); };
 XA.bcMark=(cid,mid,date,on)=>{ const c=custById(cid), m=c&&c.machines.find(x=>x.id===mid); if(!m) return; const mk=marks(m); if(on) mk[date]={done:true,on:todayISO()}; else delete mk[date]; save(); XA.refresh(); toast(on?'Reading marked as collected for '+monLabel(date.slice(0,7))+'.':'Mark removed.'); };
 XA.bcRead=(cid,mid,ym)=>{ try{ openReading(cid,mid,ym); }catch(e){ toast('Open Contracts → Reading Run to enter this reading.',true); } };
+XA.bcStart=(cid,mid)=>{ const v=(g('bs_'+mid)||{}).value; if(!v){ toast('Pick a date first.',true); return; } const c=custById(cid), m=c&&c.machines.find(x=>x.id===mid); if(!m) return; m.startDate=v; save(); XA.refresh(); toast('Start date saved.'); };
+XA.bcExport=()=>{ const D=build(); const L=D.rows.filter(r=>r.date.slice(0,7)===BC.month&&stOK(r)); if(!L.length){ toast('Nothing to export.',true); return; }
+  const data=L.map(r=>({'Billing Date':fmt(r.date),'Customer':r.c.name,'Group':r.c.group||'','Department':r.m.department||'','Brand / Model':r.m.model||'','Serial No':r.m.serial||'','Contract':r.k.ref||'','Contract Start':fmt(anchorOf(r.c,r.m,r.k)),'Contract End':fmt(r.m.endDate||r.k.end),'Reading For':r.tag,'Reading Collected':r.col?'Yes':'No'}));
+  const ws=XLSX.utils.json_to_sheet(data), wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Readings '+BC.month); XLSX.writeFile(wb,'Reading-Tracker-'+BC.month+'.xlsx'); };
 
 /* menu entries */
 let menuDone=false;
