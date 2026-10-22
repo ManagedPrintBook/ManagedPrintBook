@@ -38,3 +38,9 @@ optional closing counters. The old company stops being billed from the effective
 billed from it; old invoices stay. Sr.# search shows the current company first, previous companies greyed, plus an ownership
 timeline, and offers "Resolve as transfer" when a Sr.# is Active under two companies. Bills are blocked if one Sr.# would be
 billed to two companies for the same dates.
+
+## Add-on 12 (addons12.js) + supabase/phase2.sql
+- **Backups:** every backup is password-encrypted (no silent plain download); a reminder bar shows when one is due (default 7 days). With phase2.sql run once, the app also keeps 8 rolling cloud snapshots (one automatically every 7 days) with a Restore button in Settings.
+- **Contracts → Duplicate Sr.# Check:** lists every Sr.# that is Active in more than one place; "Resolve as transfer" (two companies) or "Keep one…" (same company).
+- **Stock → 🏷 Fix item types:** bulk Goods/Service; the import now also reads Category / Item Group columns for the type. Service items are never stock-checked.
+- **View only role:** Admin → Users → role "View only". Reads the Admin's data; server policy gives no write access; buttons for add/edit/delete are hidden.
