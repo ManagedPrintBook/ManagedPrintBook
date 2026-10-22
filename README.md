@@ -44,3 +44,8 @@ billed to two companies for the same dates.
 - **Contracts → Duplicate Sr.# Check:** lists every Sr.# that is Active in more than one place; "Resolve as transfer" (two companies) or "Keep one…" (same company).
 - **Stock → 🏷 Fix item types:** bulk Goods/Service; the import now also reads Category / Item Group columns for the type. Service items are never stock-checked.
 - **View only role:** Admin → Users → role "View only". Reads the Admin's data; server policy gives no write access; buttons for add/edit/delete are hidden.
+
+## Add-on 13 (addons13.js) — print lock, Excel import, Billing Calendar
+- **Print lock:** Ctrl+P / Print prints a blank white page everywhere except when one individual invoice is open.
+- **Contracts → Import from Excel:** reads Equipment ID, Contract/Invoice No, Start/End Date, Free Copies, Type, Billing Cycle, Customer, Department, LPO, Brand, Model, Serial. Customers go under a Group (e.g. Joseph Group); "Unlimited" = unlimited free mono & colour, no excess charge. A built-in button loads the Joseph Group list.
+- **Accounts → Billing Calendar:** month-wise list of every invoice date (first on contract start date, then every cycle until contract end), with a "Reading collected" tick per invoice (a saved reading for that month also counts).
