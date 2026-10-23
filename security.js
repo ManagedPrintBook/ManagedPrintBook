@@ -18,13 +18,28 @@ function box(){ let b=g('xaLock'); if(b) return b; b=document.createElement('div
 function lock(){ if(locked||mode!=='on'||!me()) return; locked=true; try{ sessionStorage.setItem('plc_locked','1'); }catch(e){} const b=box(); try{ const lg=document.querySelector('.logo-box img'); if(lg&&lg.src){ g('xaLkLogo').src=lg.src; g('xaLkLogo').style.display='inline-block'; } }catch(e){} g('xaLkKey').value=''; g('xaLkMsg').textContent=''; b.style.display='flex'; setTimeout(()=>g('xaLkKey').focus(),60); }
 async function tryUnlock(){ if(busy) return; const v=g('xaLkKey').value.replace(/\D/g,''); if(v.length<6){ g('xaLkMsg').textContent='Enter your 6–8 digit key.'; return; } busy=true; g('xaLkMsg').textContent='Checking…';
   try{ const r=await rpc('secure_key_verify',{p_key:v}); if(r&&r.ok){ locked=false; try{ sessionStorage.removeItem('plc_locked'); }catch(e){} g('xaLock').style.display='none'; lastAct=Date.now(); g('xaLkMsg').textContent=''; } else { g('xaLkKey').value=''; g('xaLkMsg').textContent=r&&r.wait>0?'Too many wrong tries. Wait '+Math.ceil(r.wait/60)+' minute(s).':'Wrong key.'+(r&&r.left!=null?' '+r.left+' tries left.':''); } }
-  catch(e){ g('xaLkMsg').textContent='Could not check the key: '+e.message; } busy=false; }
+  catch(e){ g('xaLkMsg').textContent=/JWT|401|expired|Not signed in/i.test(e.message||'')?'Session expired — tap "Sign out instead" and sign in again.':'Could not check the key: '+e.message; } busy=false; }
 window.lockNow=lock;
+
+/* ---- NEW: when a saved session is restored (page reload / tab restored), cover the app AT ONCE. Do not wait for the network. ---- */
+function releaseEarly(keepFlag){ locked=false; if(!keepFlag){ try{ sessionStorage.removeItem('plc_locked'); }catch(e){} } const b=g('xaLock'); if(b) b.style.display='none'; }
+function earlyLock(){ if(locked||!token()||!document.body) return; locked=true; try{ sessionStorage.setItem('plc_locked','1'); }catch(e){}
+  const b=box(); g('xaLkKey').value=''; g('xaLkMsg').textContent=''; b.style.display='flex'; const c=g('xaCover'); if(c) c.remove(); setTimeout(()=>{ try{ g('xaLkKey').focus(); }catch(e){} },60);
+  /* if the sign-in page is what ends up on screen (session no longer valid), take the lock screen away */
+  let n=0; const iv=setInterval(()=>{ n++; if(!locked){ clearInterval(iv); return; } const cb=g('cloudBox'); if(cb&&getComputedStyle(cb).display!=='none'){ releaseEarly(false); clearInterval(iv); } else if(n>120) clearInterval(iv); },500); }
+earlyLock();
 
 /* ---- triggers: idle, switching tab/window, reload ---- */
 ['mousemove','mousedown','keydown','touchstart','scroll','click'].forEach(e=>document.addEventListener(e,()=>{ if(!locked) lastAct=Date.now(); },{passive:true}));
-setInterval(()=>{ if(document.hidden) return; if(mode==='on'&&!locked&&me()&&Date.now()-lastAct>=IDLE_MS) lock(); },5000);
-document.addEventListener('visibilitychange',()=>{ if(document.hidden){ awayAt=Date.now(); return; } if(mode==='on'&&!locked&&me()&&awayAt&&Date.now()-awayAt>=AWAY_MS) lock(); else if(!locked) lastAct=Date.now(); awayAt=0; });
+setInterval(()=>{ if(document.hidden) return; if(mode==='on'&&!locked&&me()&&Date.now()-lastAct>=IDLE_MS) lock(); },2000);
+/* away = other tab (hidden) OR another window (blur). Lock when the person comes back after 1 minute, and also lock while still away so nothing is ever shown on return */
+let awayT=null;
+function leave(){ if(!awayAt) awayAt=Date.now(); clearTimeout(awayT); awayT=setTimeout(()=>{ if(awayAt&&mode==='on'&&!locked&&me()) lock(); },AWAY_MS); }
+function back(){ clearTimeout(awayT); const was=awayAt; awayAt=0; if(mode==='on'&&!locked&&me()&&was&&Date.now()-was>=AWAY_MS) lock(); else if(!locked) lastAct=Date.now(); }
+document.addEventListener('visibilitychange',()=>{ if(document.hidden) leave(); else back(); });
+window.addEventListener('blur',()=>{ if(!document.hidden) leave(); });
+window.addEventListener('focus',back);
+window.addEventListener('pageshow',e=>{ if(e.persisted) back(); });
 window.addEventListener('pagehide',()=>{ try{ if(mode==='on'&&me()) sessionStorage.setItem('plc_locked','1'); }catch(e){} });
 const ca=window.cloudAuth; if(typeof ca==='function') window.cloudAuth=function(){ try{ sessionStorage.removeItem('plc_locked'); }catch(e){} return ca.apply(this,arguments); };
 
@@ -34,8 +49,12 @@ function askKey(title,withOld,done){ XA.fm(title,(withOld?[{k:'old',label:'Curre
 function cleanLegacy(){ try{ if(DB.company&&(DB.company.lockv2||DB.company.lock)){ delete DB.company.lockv2; delete DB.company.lock; save(); } }catch(e){} }
 
 /* ---- startup ---- */
-window.lockInit=async function(){ clearTimeout(idleT); let st; try{ st=await rpc('secure_key_status'); }catch(e){ mode='legacy'; if(legacyInit) legacyInit(); const u=me(); if(u&&u.role==='admin') toast('Admin: run supabase/security.sql in Supabase to turn on the new secure key.',true); return; }
-  if(st&&st.set){ mode='on'; cleanLegacy(); let was=false; try{ was=!!sessionStorage.getItem('plc_locked'); }catch(e){} lastAct=Date.now(); if(was) lock(); return; }
+window.lockInit=async function(){ clearTimeout(idleT); let st; try{ st=await rpc('secure_key_status'); }catch(e){
+    const missing=/could not find|does not exist|404|PGRST202/i.test(e.message||'');
+    if(locked&&!missing){ mode='on'; const m=g('xaLkMsg'); if(m) m.textContent='Checking security… '+(e.message||''); return; }
+    mode='legacy'; if(locked) releaseEarly(true); if(legacyInit) legacyInit(); const u=me(); if(u&&u.role==='admin') toast('Admin: run supabase/security.sql in Supabase to turn on the new secure key.',true); return; }
+  if(st&&st.set){ mode='on'; cleanLegacy(); let was=false; try{ was=!!sessionStorage.getItem('plc_locked'); }catch(e){} if(!locked) lastAct=Date.now(); if(was&&!locked) lock(); return; }
+  if(locked) releaseEarly(false);
   mode='off'; const u=me(); if(u&&u.role==='admin') askKey('Set the secure key (one time)',false); else toast('The admin has not set the secure key yet. Ask the admin to sign in once.',true); };
 window.lockChange=function(){ askKey('Change secure key',true); };
 window.admSecurity=function(isA){ const el=g('admSec'); if(!el) return; if(!isA){ el.innerHTML=''; return; }
