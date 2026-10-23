@@ -166,7 +166,7 @@ XA.rpSave=()=>{ rp.date=g('rp_date').value; rp.method=g('rp_mode').value; rp.dep
   const alloc=rp.docs.filter(d=>num(rp.alloc[d.ref])>0).map(d=>({ref:d.ref,amt:r2(num(rp.alloc[d.ref]))}));
   const m=String(rp.no).match(/(\d+)$/); if(m) DB.prSeq=Math.max(DB.prSeq||0,parseInt(m[1],10));
   DB.ledger.push({id:uid(),cid:rp.cid,date:rp.date,type:'payment',amount:r2(rp.amount),method:rp.method,ref:rp.ref,note:[rp.no,rp.note].filter(Boolean).join(' · '),dep:rp.dep,alloc,pno:rp.no});
-  save(); XA.rpClose(); try{ const pc=g('pay_cust'); if(pc) pc.value=rp.cid; }catch(e){} if(typeof renderAll==='function') renderAll(); toast('Payment '+rp.no+' recorded'+(s.excess>0.005?' — AED '+fmtM(s.excess)+' kept as advance.':'.')); };
+  save(); XA.rpClose(); try{ const pc=g('pay_cust'); if(pc) pc.value=rp.cid; }catch(e){} if(typeof renderAll==='function') renderAll(); try{ renderBell(); }catch(e){} toast('Payment '+rp.no+' recorded'+(s.excess>0.005?' — AED '+fmtM(s.excess)+' kept as advance.':'.')); };
 const openLedger0=window.openLedger;
 window.openLedger=function(type,cid,amount,ref){
   if(type!=='payment'&&typeof openLedger0==='function') return openLedger0.apply(this,arguments);
