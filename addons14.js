@@ -94,10 +94,13 @@ window.dupOpenCust=function(cid){ closeModal('xaDup'); if(typeof openFromBell===
 function refresh(){ try{ renderAll(); }catch(e){} try{ fillCustSelects(); }catch(e){} try{ renderBell(); }catch(e){} }
 function who(){ const m=window.curUser&&window.curUser(); return m?m.name:'Offline'; }
 function nestTrash(kind,label,cid,sub,data){ DB.trash=DB.trash||[]; DB.audit=DB.audit||[]; const t=new Date().toISOString(), u=who(); DB.trash.push({id:uid(),t,u,coll:'nested',sub,cid,kind,label,data:JSON.parse(JSON.stringify(data))}); DB.audit.push({t,u,a:'deleted',k:kind,ref:label}); }
+window.nestTrashX=nestTrash;
 const _tr=window.trashRestore; window.trashRestore=function(id){ const e=(DB.trash||[]).find(x=>x.id===id); if(!e||e.coll!=='nested') return _tr&&_tr.apply(this,arguments);
   const c=custById(e.cid); if(!c){ toast('The customer of this record no longer exists — restore the customer first.',true); return; }
   if(e.sub==='contract'){ if((c.contracts||[]).some(k=>k.id===e.data.id)){ toast('This contract already exists.',true); return; } (c.contracts=c.contracts||[]).push(e.data); (e.moved||[]).forEach(()=>{}); }
   else if(e.sub==='machine'){ const m=(c.machines||[]).find(x=>x.id===e.data.id); if(!m){ toast('Machine record not found.',true); return; } Object.assign(m,e.data); }
+  else if(e.sub==='reading'){ const m=(c.machines||[]).find(x=>x.id===e.data.mid); if(!m){ toast('Machine not found.',true); return; } if((m.readings||[]).some(r=>r.month===e.data.r.month)){ toast('A reading for that month already exists.',true); return; } (m.readings=m.readings||[]).push(e.data.r); m.readings.sort((x,y)=>String(x.month).localeCompare(String(y.month))); }
+  else if(e.sub==='kdelfull'){ if((c.contracts||[]).some(k=>k.id===e.data.k.id)){ toast('This contract already exists.',true); return; } (c.contracts=c.contracts||[]).push(e.data.k); (e.data.machines||[]).forEach(m=>{ if(!(c.machines||[]).some(x=>x.id===m.id)) c.machines.push(m); }); }
   else if(e.sub==='kmerge'){ const to=(c.contracts||[]).find(k=>k.id===e.data.toId); if(!to){ toast('The contract it was merged into no longer exists.',true); return; } (c.contracts=c.contracts||[]).push(e.data.k); (e.data.mids||[]).forEach(mid=>{ const m=c.machines.find(x=>x.id===mid); if(m) m.contractId=e.data.k.id; }); if(e.data.minBefore!==undefined) to.minMonthly=e.data.minBefore; }
   DB.trash=DB.trash.filter(x=>x.id!==id); DB.audit.push({t:new Date().toISOString(),u:who(),a:'restored',k:e.kind,ref:e.label}); save(); refresh(); toast('Restored: '+e.label); };
 window.dupKDel=function(cid,kid){ const c=custById(cid), k=c&&(c.contracts||[]).find(x=>x.id===kid); if(!k) return; if((c.machines||[]).some(m=>m.contractId===kid)){ toast('This contract still has machines — merge it instead.',true); return; }
