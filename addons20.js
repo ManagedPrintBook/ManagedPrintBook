@@ -1,0 +1,51 @@
+/* ===== Add-on 20: "What's new" (product updates, Zoho-style) on Home + header button · Backup & Restore lives in Admin only ===== */
+(function(){
+'use strict';
+const g=id=>document.getElementById(id);
+const E=s=>(typeof esc==='function'?esc(String(s===undefined||s===null?'':s)):String(s));
+const role=()=>{ const m=window.curUser&&window.curUser(); return m?m.role:null; };
+const isAdmin=()=>role()==='admin';
+
+/* ---------- release notes: newest first. Only what was improved / added in the app — no daily activity ---------- */
+const R=[
+ {id:'20261026b',date:'2026-10-26',tag:'Improved',title:'Backup & Restore is now in Admin only',desc:'Backup, Restore and Export / Import are removed from Accounts and available to the Admin in one place.',go:"go('xa','bak')",where:'Admin → Backup & Restore'},
+ {id:'20261026a',date:'2026-10-26',tag:'New',title:'Mailchimp Tracker',desc:'Track every enquiry that comes from your Mailchimp promotions — status, assigned person, follow-up dates and quote value. Import your Excel sheet. Users see only their own enquiries; Admin and Manager see all. Reports → Mailchimp Tracker downloads Excel and PDF.',go:"go('xa','mct')",where:'Sales → Mailchimp Tracker'},
+ {id:'20261026a2',date:'2026-10-26',tag:'Improved',title:'Statement of Accounts redesigned',desc:'New layout with payment details (“for payment of INV…”), credit notes in brackets, shaded rows and headings repeated on every page.',where:'Customer → Statement'},
+ {id:'20261024e',date:'2026-10-24',tag:'Improved',title:'Customers open from reports and payments',desc:'Click a customer name in any report, or pick a customer on Payments & Statements, to open that customer’s page. The Statement button opens the customer’s Statement tab.'},
+ {id:'20261024d',date:'2026-10-24',tag:'Improved',title:'Generate Bill follows the contract cycle',desc:'Tick a contract and the lease period fills from that contract’s start date and billing cycle, with Previous / Next / Current cycle buttons. Contracts with unlimited copies keep the excess period empty — new “Unlimited copies” option on contracts.',go:"go('contracts','A')",where:'Contracts → Bill'},
+ {id:'20261024c',date:'2026-10-24',tag:'New',title:'Bills Due, Month-End Close and control tools',desc:'Bills Due queue, VAT 201 helper, Month-End Close with month lock, Admin approvals, Data Health score, Customer payment risk, Reorder list, a reading-jump warning, a renewal price check and receipt send options per customer.',go:"go('xa','bdue')",where:'Contracts → Bills Due · Accounts · Admin'},
+ {id:'20261024b',date:'2026-10-24',tag:'Improved',title:'Billing Calendar inside Contracts',desc:'The Billing Calendar is also in the Contracts menu, between All Contracts and Lease Contracts.',go:"go('xa','bcal')",where:'Contracts → Billing Calendar'},
+ {id:'20261024a',date:'2026-10-24',tag:'New',title:'Cancel or delete a contract · Contract # and LPO #',desc:'A ✕ next to Bill cancels or deletes a contract (recoverable from the Recycle bin). Add Machine and Add Contract now have Contract # and LPO # fields. Billing Calendar accepts readings for the current month only, can revoke a mistaken reading, and keeps expired contracts red until renewed or cancelled.'},
+ {id:'20261023e',date:'2026-10-23',tag:'New',title:'One invoice for several contracts · payment receipts',desc:'Tick several contracts of one customer and bill them on ONE invoice, grouped by contract. Payment receipt voucher with View / Print / PDF / WhatsApp / Email, opened from any payment amount. New Accounts overview.',go:"go('xa','acc')",where:'Accounts → Accounts overview'},
+ {id:'20261023d',date:'2026-10-23',tag:'New',title:'Duplicate checks in notifications',desc:'The bell flags the same Sr.# or contract under two customers, similar serial numbers and customers that look like the same company — with Merge, Remove and Delete (all recoverable). Every notification now has a Close button.'},
+ {id:'20261023a',date:'2026-10-23',tag:'Fixed',title:'Lock screen appears instantly',desc:'The secure-key screen now shows immediately when you reopen the page or return after one minute away, instead of after a short delay.'}
+];
+window.xaReleases=R;
+const key=()=>'xaWhatsNewSeen_'+(((window.curUser&&window.curUser())||{}).id||'u');
+const seen=()=>{ try{ return localStorage.getItem(key())||''; }catch(e){ return ''; } };
+const unread=()=>{ const s=seen(); if(!s) return R.length; const i=R.findIndex(x=>x.id===s); return i<0?R.length:i; };
+const markSeen=()=>{ try{ localStorage.setItem(key(),R[0].id); }catch(e){} dot(); };
+const TAG={New:'good',Improved:'blue',Fixed:'warn'};
+const item=(r,i,n)=>'<div style="display:flex;gap:12px;padding:12px 0;border-bottom:1px solid #eef0f4"><div style="min-width:78px;font-size:.78rem;color:#6b7893">'+E(dmyS(r.date))+'</div><div style="flex:1"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="badge '+(TAG[r.tag]||'')+'">'+E(r.tag.toUpperCase())+'</span><b>'+E(r.title)+'</b>'+(i<n?'<span style="background:#e11d48;color:#fff;border-radius:8px;padding:0 6px;font-size:.65rem">NEW FOR YOU</span>':'')+'</div><div style="font-size:.86rem;line-height:1.5;margin-top:4px;color:#3b4256">'+E(r.desc)+'</div>'+(r.where?'<div style="font-size:.78rem;color:#6b7893;margin-top:4px">📍 '+E(r.where)+(r.go?' · <a style="color:#1d4ed8;cursor:pointer" onclick="closeModal(\'xaNew\');'+r.go+'">Open</a>':'')+'</div>':'')+'</div></div>';
+function dmyS(d){ const m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return d.slice(8,10)+' '+m[+d.slice(5,7)-1]+' '+d.slice(0,4); }
+window.xaWhatsNew=function(){ let o=g('xaNew'); if(!o){ o=document.createElement('div'); o.className='overlay'; o.id='xaNew'; document.body.appendChild(o); } const n=unread();
+  o.innerHTML='<div class="modal" style="max-width:720px;max-height:88vh;overflow:auto"><div style="display:flex;align-items:center;gap:8px"><h3 style="margin:0">🎁 What’s new</h3><span class="hint" style="margin:0">Improvements and new features in ManagedPrintBook</span><button class="btn sm ghost" style="margin-left:auto" onclick="closeModal(\'xaNew\')">✕</button></div>'+R.map((r,i)=>item(r,i,n)).join('')+'</div>'; openModal('xaNew'); markSeen(); };
+
+/* ---------- header button ---------- */
+function dot(){ const b=g('xaNewBtn'); if(!b) return; const n=unread(); const c=b.querySelector('.bcount'); if(c){ c.textContent=n?n:''; c.style.display=n?'':'none'; } }
+function header(){ if(g('xaNewBtn')) { dot(); return; } const bell=g('bellBtn'); if(!bell) return; const w=document.createElement('div'); w.className='bellwrap'; w.innerHTML='<button class="bell" id="xaNewBtn" title="What’s new" onclick="xaWhatsNew()">🎁<span class="bcount"></span></button>'; bell.parentNode.parentNode.insertBefore(w,bell.parentNode); dot(); }
+setInterval(header,1500);
+
+/* ---------- card on the Home dashboard ---------- */
+function card(){ const v=g('v-dash'); if(!v||v.style.display==='none') return; let c=g('xaNewCard'); const n=unread(); const html='<div style="display:flex;align-items:center;gap:8px"><b style="font-size:1rem">🎁 What’s new</b><span class="hint" style="margin:0">Latest improvements to your system</span><button class="btn sm ghost" style="margin-left:auto" onclick="xaWhatsNew()">See all updates</button></div>'+R.slice(0,4).map((r,i)=>item(r,i,n)).join('');
+  if(!c){ c=document.createElement('div'); c.id='xaNewCard'; c.style.cssText='background:#fff;border:1px solid #e3e6ec;border-radius:12px;padding:14px 16px;margin-bottom:12px'; v.insertBefore(c,v.firstChild); } if(c.dataset.n!==String(n)){ c.dataset.n=String(n); c.innerHTML=html; } }
+setInterval(card,1500);
+
+/* ---------- Backup & Restore: Admin only (removed from Accounts) ---------- */
+function menu(){ if(typeof SD==='undefined'||SD.__xa20) return; const A=SD.find(x=>x.g==='Accounts'), D=SD.find(x=>x.g==='Admin'); if(!A||!D) return; SD.__xa20=1;
+  A.items=A.items.filter(i=>i[2]!=='bak'); if(!D.items.some(i=>i[2]==='bak')){ const ix=D.items.findIndex(i=>i[0]==='Data Health'); D.items.splice(ix<0?D.items.length:ix+1,0,['Backup & Restore','xa','bak']); } try{ sdBuild(); sdSync('xa'); }catch(e){} }
+setInterval(menu,1000);
+if(window.XA&&XA.reg) XA.reg('bak',{title:'Backup & restore',render(){ const h='<div class="sec" style="margin-top:0"><h2>Backup &amp; restore</h2><small style="margin-left:auto">Admin only</small></div>';
+  if(!isAdmin()) return h+'<div class="card pad"><div class="empty">Only the Admin can use Backup &amp; Restore, Export and Import.</div></div>';
+  return h+'<div class="card pad"><p style="margin-top:0">Download a full copy of all your data, or restore from a copy you downloaded earlier. Restore replaces <b>all</b> current data — download a fresh backup first.</p><div class="actions" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" onclick="XA.bakDl()">⬇ Download backup (JSON)</button><label class="btn ghost" style="cursor:pointer">⬆ Restore from file<input type="file" accept=".json" style="display:none" onchange="XA.bakUp(this.files[0])"></label><button class="btn ghost" onclick="openIE()">⇅ Export / Import (CSV)</button><button class="btn ghost" onclick="exportExcel()">📊 Excel workbook</button><label class="btn ghost" style="cursor:pointer">⬆ Import Excel<input type="file" accept=".xlsx,.xls" style="display:none" onchange="importExcel(event)"></label></div></div>'; }});
+})();
