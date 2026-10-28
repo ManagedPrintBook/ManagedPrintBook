@@ -56,3 +56,7 @@ billed to two companies for the same dates.
 - **addons22.js** — Accounts: MRR dashboard · Deferred revenue · Bad-debt write-off / provision / recoveries · Payables ageing & supplier payments · Anniversary price-increase notices.
 - **addons23.js** — Contracts: Machine asset register · Termination & buy-out quote · Right-sizing report.
 - **supabase/phase3.sql** — run once: shared team tasks, shared saved views, login history. Without it tasks/views are kept in your own data only and the sign-in history page stays empty.
+
+## Add-ons 24–25 (v20261028a)
+- **addons24.js** — Preventive maintenance plans · Toner reorder suggestions · Machine lifecycle timeline · Technician mobile page (“My visits”: GPS check-in, meter photo, signature).
+- **addons25.js** — Renewal forecast (weighted, tied to MRR) · Quote → contract · Scheduled report packs (due reminder, send by email/WhatsApp/PDF/Excel — no unattended sending) · Customer activity feed · Excel import of custom fields and asset costs.

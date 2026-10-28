@@ -89,7 +89,7 @@ function openSearch(){ if(locked()) return; let o=g('xaSrch'); if(!o){ o=documen
     o.addEventListener('mousedown',e=>{ if(e.target===o) closeSearch(); }); const inp=g('xaSrchIn'); inp.addEventListener('input',()=>{ SEL=0; drawSearch(); });
     inp.addEventListener('keydown',e=>{ if(e.key==='Escape'){ e.preventDefault(); closeSearch(); } else if(e.key==='ArrowDown'){ e.preventDefault(); if(HITS.length){ SEL=(SEL+1)%HITS.length; drawSearch(); const el=g('xaSrchOut').querySelector('.x21-r.on'); if(el) el.scrollIntoView({block:'nearest'}); } } else if(e.key==='ArrowUp'){ e.preventDefault(); if(HITS.length){ SEL=(SEL-1+HITS.length)%HITS.length; drawSearch(); const el=g('xaSrchOut').querySelector('.x21-r.on'); if(el) el.scrollIntoView({block:'nearest'}); } } else if(e.key==='Enter'){ e.preventDefault(); pick(SEL); } }); }
   try{ INDEX=buildIndex(); }catch(e){ console.error(e); INDEX=[]; } o.style.display='flex'; g('xaSrchIn').value=''; SEL=0; drawSearch(); setTimeout(()=>g('xaSrchIn').focus(),20); }
-window.xaSearchOpen=openSearch;
+window.xaSearchOpen=openSearch; X21.tasks=()=>taskList(); X21.linkName=t=>linkName(t);
 document.addEventListener('keydown',e=>{ if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&!e.altKey&&String(e.key).toLowerCase()==='k'){ e.preventDefault(); e.stopPropagation(); const o=g('xaSrch'); if(o&&o.style.display==='flex') closeSearch(); else openSearch(); } },true);
 
 /* ============ 2. tasks & reminders ============ */
