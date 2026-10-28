@@ -50,3 +50,9 @@ billed to two companies for the same dates.
 - **Contracts → Import from Excel:** reads Equipment ID, Contract/Invoice No, Start/End Date, Free Copies, Type, Billing Cycle, Customer, Department, LPO, Brand, Model, Serial. Customers go under a Group (e.g. Joseph Group); "Unlimited" = unlimited free mono & colour, no excess charge. A built-in button loads the Joseph Group list.
 - **Accounts → Billing Calendar / Reading Tracker:** all active lease customers (or all machines): month list, year overview grid, and a "Missing start dates" fixer. Dates run from machine start date (else contract start) every lease cycle, plus excess-cycle dates when the machine has excess rates, until contract end. Tick "Reading collected" (a saved reading for that month also counts); export a month to Excel.
 - **Frozen headings** in the Billing Calendar tables (Jan–Dec header and first column stay in view). **Lease prices** tab: lease bills are advance bills (price per monthly / quarterly / yearly cycle); machines with no lease amount cannot be billed, so the amount is entered here or in the Excel import preview.
+
+## Add-ons 21–23 (v20261027a)
+- **addons21.js** — Ctrl+K search everything · Tasks & reminders (Home “My tasks” card) · Custom fields (Admin) · Saved views (📌 in the header) · Two-step login (authenticator app via Supabase MFA) + sign-in history (Admin → Security & Sign-ins).
+- **addons22.js** — Accounts: MRR dashboard · Deferred revenue · Bad-debt write-off / provision / recoveries · Payables ageing & supplier payments · Anniversary price-increase notices.
+- **addons23.js** — Contracts: Machine asset register · Termination & buy-out quote · Right-sizing report.
+- **supabase/phase3.sql** — run once: shared team tasks, shared saved views, login history. Without it tasks/views are kept in your own data only and the sign-in history page stays empty.
