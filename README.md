@@ -65,3 +65,7 @@ billed to two companies for the same dates.
 - Reading Run: a reading is shown only from N days (default 7) before its reading date; reading day per machine / customer (blank = month end); search bar; frozen heading. `pendingReadings()` (nav badge, bell, dashboard) follows the same rule.
 - Contracts → Usage & Toner Averages (`ctView('U')`): averages by group → company → machine, editable overrides, yields and cartridge costs (shares `DB.tonerCfg` with Toner Alerts).
 - Customers are kept A–Z in every list; backup password dialogs have a show / hide eye.
+
+## Add-on 27 (v20261031b)
+- **addons27.js** — Contracts: Standby Machines · Used Machines & Trade-in. Items: Van & Warehouse Stock. Suppliers: Warranty / RMA. Customers: Customer Price Lists (applied automatically when picking an item on a quote; warning if a quote is saved below the agreed price). Sales: Quote Acceptance Links · Win / Loss (reason asked when a quote is Declined). Accounts: Invoice Disputes (a disputed invoice drops out of overdue / ageing / bell while open). Reports: Ask Your Data (rule-based, runs in the browser — no outside service). Admin: Cost Visibility (hides cost / margin / profit columns on screen for chosen roles; screen masking only, not server-side security).
+- **quote.html + supabase/phase4.sql** — run phase4.sql once in Supabase → SQL Editor. Customers open `/quote?t=…` (no login), see the quote, and accept (typed name + signature) or decline. Use Sales → Quote Acceptance Links → Check responses (the app also checks every 3 minutes) to apply the answer to the quote.

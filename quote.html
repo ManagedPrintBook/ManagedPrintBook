@@ -1,0 +1,26 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Quotation</title>
+<style>*{box-sizing:border-box}body{margin:0;font-family:Inter,"Segoe UI",system-ui,Arial,sans-serif;background:#f5f6f8;color:#1b2540}.top{background:#14213d;color:#fff;padding:16px 18px}.top h1{margin:0;font-size:1.1rem}.w{max-width:860px;margin:0 auto;padding:14px}.card{background:#fff;border:1px solid #e1e5ee;border-radius:10px;padding:14px;margin-bottom:12px}iframe{width:100%;height:900px;border:1px solid #e1e5ee;border-radius:8px;background:#fff}label{display:block;font-size:.85rem;margin:10px 0 4px}input,textarea{width:100%;padding:9px;border:1px solid #cfd6e4;border-radius:8px;font:inherit}canvas{border:1px dashed #8a93a6;border-radius:8px;width:100%;height:130px;touch-action:none;background:#fff}button{border:0;border-radius:8px;padding:11px 18px;font:inherit;font-weight:600;cursor:pointer;background:#1d4ed8;color:#fff}button.g{background:#fff;color:#33405c;border:1px solid #cfd6e4}button.r{background:#fff;color:#b3261e;border:1px solid #e4b4b0}.ok{color:#17703a}.err{color:#b3261e}.mut{color:#6a7590;font-size:.85rem}</style></head>
+<body><div class="top"><h1 id="co">Quotation</h1><small id="cu"></small></div><div class="w" id="app"><div class="card">Loading…</div></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+const sb=supabase.createClient('https://zaogpwfobqvayeejfvxc.supabase.co','sb_publishable_NWe7FFqt7_C0qOOZoqvsFQ_tH9qBCty',{auth:{persistSession:false}});
+const T=new URLSearchParams(location.search).get('t')||'', $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let D=null, sig='', drawn=false;
+async function init(){ if(!T){ $('app').innerHTML='<div class="card err">This link is not valid. Please ask us for a new one.</div>'; return; }
+  const r=await sb.rpc('quote_get',{t:T}); if(r.error||!r.data){ $('app').innerHTML='<div class="card err">This link is not valid or has expired. Please contact us for a new one.</div>'; return; }
+  D=r.data; $('co').textContent=D.company||'Quotation'; $('cu').textContent='Quotation '+D.no+' · '+(D.customer||''); draw(); }
+function draw(){ let h='<div class="card"><iframe id="qf" sandbox="" title="Quotation"></iframe></div>';
+  if(D.answered){ h+='<div class="card '+(D.answered==='accepted'?'ok':'err')+'"><b>'+(D.answered==='accepted'?'Thank you — this quotation has been accepted.':'This quotation was declined.')+'</b><div class="mut">Answered on '+esc(String(D.answered_at||'').slice(0,10))+'</div></div>'; }
+  else { h+='<div class="card"><b>Your answer</b><label>Your full name *</label><input id="nm" autocomplete="name"><label>Signature (draw with finger or mouse)</label><canvas id="cv"></canvas><div style="margin-top:6px"><button class="g" type="button" onclick="clr()">Clear signature</button></div><label>Comment (optional)</label><textarea id="nt" rows="2"></textarea><div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px"><button type="button" onclick="send(\'accepted\')">✔ Accept quotation</button><button class="r" type="button" onclick="send(\'declined\')">Decline</button></div><p class="mut">By accepting you confirm the items, prices and terms shown above.</p></div>'; }
+  $('app').innerHTML=h; $('qf').srcdoc=D.html||''; if(!D.answered) pad(); }
+function pad(){ const c=$('cv'); c.width=c.clientWidth*2; c.height=260; const x=c.getContext('2d'); x.scale(2,2); x.lineWidth=2; x.lineCap='round'; x.strokeStyle='#111'; let d=false;
+  const p=e=>{ const r=c.getBoundingClientRect(), t=e.touches?e.touches[0]:e; return [t.clientX-r.left,t.clientY-r.top]; };
+  const st=e=>{ d=true; const [a,b]=p(e); x.beginPath(); x.moveTo(a,b); e.preventDefault(); }, mv=e=>{ if(!d) return; const [a,b]=p(e); x.lineTo(a,b); x.stroke(); drawn=true; e.preventDefault(); }, en=()=>{ d=false; };
+  c.addEventListener('mousedown',st); c.addEventListener('mousemove',mv); window.addEventListener('mouseup',en); c.addEventListener('touchstart',st,{passive:false}); c.addEventListener('touchmove',mv,{passive:false}); c.addEventListener('touchend',en); }
+function clr(){ const c=$('cv'); c.getContext('2d').clearRect(0,0,c.width,c.height); drawn=false; }
+function small(){ const c=$('cv'), o=document.createElement('canvas'); o.width=360; o.height=130; const x=o.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,360,130); x.drawImage(c,0,0,360,130); return o.toDataURL('image/jpeg',0.6); }
+async function send(a){ const n=$('nm').value.trim(); if(a==='accepted'){ if(n.length<2){ alert('Please type your name.'); return; } if(!drawn){ alert('Please sign in the box.'); return; } } else if(!confirm('Decline this quotation?')) return;
+  const r=await sb.rpc('quote_respond',{t:T,a,n,s:a==='accepted'?small():'',note:$('nt').value.trim()}); if(r.error||!r.data||!r.data.ok){ alert((r.data&&r.data.error)||'Could not send. Please try again or call us.'); return; } D.answered=a; D.answered_at=new Date().toISOString(); draw(); window.scrollTo(0,document.body.scrollHeight); }
+init();
+</script></body></html>
