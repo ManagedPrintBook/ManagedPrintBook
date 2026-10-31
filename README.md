@@ -60,3 +60,8 @@ billed to two companies for the same dates.
 ## Add-ons 24–25 (v20261028a)
 - **addons24.js** — Preventive maintenance plans · Toner reorder suggestions · Machine lifecycle timeline · Technician mobile page (“My visits”: GPS check-in, meter photo, signature).
 - **addons25.js** — Renewal forecast (weighted, tied to MRR) · Quote → contract · Scheduled report packs (due reminder, send by email/WhatsApp/PDF/Excel — no unattended sending) · Customer activity feed · Excel import of custom fields and asset costs.
+
+## Add-on 26 (v20261031a)
+- Reading Run: a reading is shown only from N days (default 7) before its reading date; reading day per machine / customer (blank = month end); search bar; frozen heading. `pendingReadings()` (nav badge, bell, dashboard) follows the same rule.
+- Contracts → Usage & Toner Averages (`ctView('U')`): averages by group → company → machine, editable overrides, yields and cartridge costs (shares `DB.tonerCfg` with Toner Alerts).
+- Customers are kept A–Z in every list; backup password dialogs have a show / hide eye.
