@@ -115,5 +115,23 @@ XB.checkHTML=function(c){ let L; try{ L=issues(c); }catch(e){ return ''; }
     +(x.inv?'<a style="cursor:pointer;color:#1d4ed8" onclick="XA.csTab&&XA.csTab(\'tx\')">See invoices</a>':'')+'</div>').join('')+'</div>'; };
 document.addEventListener('change',e=>{ const x=e.target; if(!x||!x.classList||!x.classList.contains('xb_link')||!x.value) return; const c=custById(x.dataset.c), m=c&&c.machines.find(y=>y.id===x.dataset.m); if(!m) return; m.contractId=x.value; save(); toast('Machine linked to the contract.'); try{ XA.csRight(); }catch(_){ try{ renderAll(); }catch(__){} } });
 
+
+/* ---------------- 4. Generate Bill form: invoice date + project name ---------------- */
+const _rd=window.renderDetail; if(typeof _rd==='function') window.renderDetail=function(){ const r=_rd.apply(this,arguments);
+  try{ const ref=g('r_ref'), row=ref&&ref.closest('.filters'); if(row&&!g('r_idate')){ const c=custById(typeof billPage!=='undefined'?billPage:null)||{}, ks=(c.contracts||[]).map(k=>k.ref).filter(Boolean);
+    row.insertAdjacentHTML('afterend','<div class="filters"><div class="fg"><label>Invoice date</label><input type="date" id="r_idate" value="'+todayISO()+'"></div><div class="fg grow"><label>Project name (shown on the invoice — blank = contract number)</label><input id="r_proj" placeholder="'+E(ks.join(', '))+'"></div></div>'); } }catch(e){}
+  return r; };
+
+/* ---------------- 5. bill checks: wrong-rate and zero-start readings ---------------- */
+const _bb=window.buildBill; if(typeof _bb==='function') window.buildBill=function(c,o,mode){ const b=_bb.apply(this,arguments);
+  try{ b.warn=b.warn||[]; const cc=b.c||c, ms=(cc.machines||[]).filter(m=>m.type!=='Plotter'&&(m.status==='Active'));
+    if(mode==='overall'){ const bad=[]; ms.forEach(m=>{ [['rateColor','colour rate'],['rateMono','mono rate'],['freeColor','free colour'],['freeMono','free mono']].forEach(([f,l])=>{ if(num(m[f])>0&&Math.abs(num(m[f])-num(c[f]))>1e-9) bad.push((m.serial||m.model)+' has its own '+l+' '+num(m[f])+' (customer-level: '+num(c[f])+')'); }); });
+      if(bad.length) b.warn.push({t:'info',msg:'⚠ Overall billing uses the <b>customer-level</b> rates and free copies, but '+E(bad.slice(0,4).join('; '))+(bad.length>4?' …':'')+'. If the machine values are the correct ones (as on your old invoice), choose <b>Use Individual Machine Billing</b>.'}); }
+    (b.per||[]).filter(x=>x.has).forEach(x=>{ const m=x.m, rs=(m.readings||[]).slice().sort((a,z)=>String(a.month).localeCompare(String(z.month))), f=rs[0]; if(!f||!x.t) return;
+      const zero=[f.ms,f.cs,f.ms3,f.cs3].every(v=>!num(v)), big=num(x.t.mono)+num(x.t.color);
+      if(zero&&big>0&&(x.t.mono>=20000||x.t.color>=3000)&&[f.me,f.ce].some(v=>num(v)>0)) b.warn.push({t:'info',msg:'⚠ The first reading of <b>'+E(m.serial||m.model)+'</b> ('+E(f.date||f.month)+') starts from counter 0, so it bills the whole life of the machine (mono '+fmtN(x.t.mono)+', colour '+fmtN(x.t.color)+'). If that reading is only the opening meter, edit it so the start counters equal the end counters.'}); });
+  }catch(e){}
+  return b; };
+
 /* ---------------- 3. bell: duplicate summary count is left to the existing notifications ---------------- */
 })();
