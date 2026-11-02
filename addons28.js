@@ -15,7 +15,7 @@ XB.q=null;
 XB.start=function(cid,kid){
   const c=custById(cid), k=c&&(c.contracts||[]).find(x=>x.id===kid); if(!k) return;
   if(k.cancelled){ toast('This contract is cancelled.',true); return; }
-  const ms=machinesOf(c,k); if(!ms.length){ toast('This contract has no active machine yet — use ＋ Machine first.',true); return; }
+  const ms=machinesOf(c,k); if(!ms.length){ XB.noMachine(c,k); return; }
   const ym=todayISO().slice(0,7);
   const todo=needsReading(c,k,ms)?ms.filter(m=>!(m.readings||[]).some(r=>r.month===ym)):[];
   XB.q={cid,kid,ym,list:todo.map(m=>m.id),total:todo.length,i:0,t0:0};
@@ -43,6 +43,35 @@ XB.bill=function(){
     try{ if(typeof bkApply==='function') bkApply(); }catch(e){}
     try{ genClick('invoice'); }catch(e){ toast('Open Generate Bill and press Generate Tax Invoice.',true); } },250);
 };
+
+
+/* ---------------- 1b. contract has no active machine: find it / move it here ---------------- */
+const klab=(c,k)=>(typeof kLabel==='function'?kLabel(c,k):(k.ref||k.id));
+const audit=(a,ref)=>{ try{ DB.audit=DB.audit||[]; const m=window.curUser&&window.curUser(); DB.audit.push({t:new Date().toISOString(),u:m?m.name:'Offline',a,k:'Machine',ref}); }catch(e){} };
+function mRow(c,k,m,opt){ const cur=(c.contracts||[]).find(x=>x.id===m.contractId);
+  return '<div style="display:flex;gap:8px;align-items:center;padding:6px 0;border-top:1px solid #eef0f5;font-size:.84rem"><span style="flex:1"><b>'+E(m.serial||'(no Sr.#)')+'</b> · '+E(m.model||'')+(m.department?' · '+E(m.department):'')+'<br><span class="hint" style="margin:0">'+(opt.other?'now under <b>'+E(cur?klab(c,cur):'no contract')+'</b>':'status <b>'+E(m.status||'')+'</b> on this contract')+' · '+(m.readings||[]).length+' reading(s)</span></span>'
+   +(opt.other?'<button class="btn sm" onclick="XB.move(\''+c.id+'\',\''+m.id+'\',\''+k.id+'\')">Move to '+E(klab(c,k))+'</button>':'<button class="btn sm" onclick="XB.activate(\''+c.id+'\',\''+m.id+'\',\''+k.id+'\')">Make Active</button>')+'</div>'; }
+XB.noMachine=function(c,k){
+  let o=g('xbNo'); if(!o){ o=document.createElement('div'); o.className='overlay'; o.id='xbNo'; document.body.appendChild(o); }
+  const same=(c.machines||[]).filter(m=>m.contractId===k.id&&m.status!=='Active'), oth=(c.machines||[]).filter(m=>m.contractId!==k.id&&m.status==='Active');
+  o.innerHTML='<div class="modal" style="max-width:640px"><h3>No active machine on “'+E(klab(c,k))+'”</h3>'
+   +'<div class="hint" style="margin:0 0 8px">If you already entered the Sr.# and its readings, the machine was probably saved under a different contract of '+E(c.name)+' (the Add-machine form defaults to the first contract). Pick it below and it moves here with its readings, then the bill continues.</div>'
+   +(same.length?'<b style="font-size:.8rem">Machines on this contract that are not Active</b>'+same.map(m=>mRow(c,k,m,{})).join(''):'')
+   +'<b style="font-size:.8rem;display:block;margin-top:10px">Other active machines of '+E(c.name)+'</b>'+(oth.length?oth.map(m=>mRow(c,k,m,{other:1})).join(''):'<div class="hint">None.</div>')
+   +'<div style="margin-top:12px;border-top:1px solid #eef0f5;padding-top:10px"><b style="font-size:.8rem">Search a Sr.# in all customers</b><div style="display:flex;gap:6px;margin-top:4px"><input id="xb_sr" class="xa-in" placeholder="e.g. W2W6Z11252" style="flex:1" onkeydown="if(event.key===\'Enter\')XB.find(\''+c.id+'\',\''+k.id+'\')"><button class="btn sm ghost" onclick="XB.find(\''+c.id+'\',\''+k.id+'\')">Search</button></div><div id="xb_res"></div></div>'
+   +'<div class="modal-actions"><button class="btn ghost" onclick="openMachineModal(\''+c.id+'\');closeModal(\'xbNo\')">＋ Add a new machine</button><button class="btn ghost" onclick="closeModal(\'xbNo\')">Close</button></div></div>';
+  window.ctPreK=k.id; openModal('xbNo'); };
+XB.find=function(cid,kid){ const q=norm((g('xb_sr')||{}).value), out=g('xb_res'); if(!out) return; if(!q){ out.innerHTML=''; return; }
+  const c=custById(cid), k=c&&c.contracts.find(x=>x.id===kid), hit=[];
+  (DB.customers||[]).forEach(o=>(o.machines||[]).forEach(m=>{ if(norm(m.serial).includes(q)) hit.push({o,m}); }));
+  out.innerHTML=hit.length?hit.map(({o,m})=>{ const ck=(o.contracts||[]).find(x=>x.id===m.contractId);
+    return '<div style="padding:6px 0;border-top:1px solid #eef0f5;font-size:.84rem"><b>'+E(m.serial)+'</b> · '+E(m.model||'')+' · <b>'+E(o.name)+'</b> · '+E(ck?klab(o,ck):'no contract')+' · '+E(m.status||'')+' · '+(m.readings||[]).length+' reading(s) '
+      +(o.id===cid?(m.contractId===kid&&m.status==='Active'?'<span style="color:#0d6e4b">already here</span>':(m.contractId===kid?'<button class="btn sm" onclick="XB.activate(\''+cid+'\',\''+m.id+'\',\''+kid+'\')">Make Active</button>':'<button class="btn sm" onclick="XB.move(\''+cid+'\',\''+m.id+'\',\''+kid+'\')">Move here</button>'))
+        :'<span class="hint" style="margin:0">under another customer — use Transfer machines (More ▾) on that customer</span>')+'</div>'; }).join(''):'<div class="hint" style="margin-top:6px">No machine with this Sr.# in any customer.</div>'; };
+function after(cid,kid){ save(); closeModal('xbNo'); try{ XA.csRight(); }catch(e){ try{ renderAll(); }catch(_){} } setTimeout(()=>XB.start(cid,kid),300); }
+XB.move=function(cid,mid,kid){ const c=custById(cid), m=c&&c.machines.find(x=>x.id===mid), k=c&&c.contracts.find(x=>x.id===kid); if(!m||!k) return; const from=(c.contracts||[]).find(x=>x.id===m.contractId);
+  m.contractId=kid; m.events=m.events||[]; m.events.push({id:uid(),date:todayISO(),type:'Move',note:'Moved to contract '+klab(c,k)+(from?' (from '+klab(c,from)+')':''),qty:0}); audit('moved to contract',(m.serial||m.model)+' · '+c.name+' · '+klab(c,k)); toast('Machine moved to '+klab(c,k)+'.'); after(cid,kid); };
+XB.activate=function(cid,mid,kid){ const c=custById(cid), m=c&&c.machines.find(x=>x.id===mid); if(!m) return; m.status='Active'; delete m.endDate; audit('made active',(m.serial||m.model)+' · '+c.name); toast('Machine is Active again.'); after(cid,kid); };
 
 /* ---------------- 2. Data check card on the customer page ---------------- */
 function issues(c){
