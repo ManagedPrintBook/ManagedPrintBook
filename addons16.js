@@ -6,8 +6,10 @@ const E=s=>(typeof esc==='function'?esc(String(s===undefined||s===null?'':s)):St
 const num=v=>parseFloat(v)||0;
 const role=()=>{ const m=window.curUser&&window.curUser(); return m?m.role:null; };
 const who=()=>{ const m=window.curUser&&window.curUser(); return m?m.name:'Offline'; };
-const addM=(s,n)=>{ const [y,m,d]=s.split('-').map(Number); const t=(y*12+(m-1))+n, ny=Math.floor(t/12), nm=t%12+1, dim=new Date(ny,nm,0).getDate(); return ny+'-'+String(nm).padStart(2,'0')+'-'+String(Math.min(d,dim)).padStart(2,'0'); };
-const addD=(s,n)=>{ const d=new Date(s+'T00:00:00Z'); d.setUTCDate(d.getUTCDate()+n); return d.toISOString().slice(0,10); };
+const pad2=v=>String(v).padStart(2,'0');
+const isoD=s=>{ s=String(s===undefined||s===null?'':s).trim(); let m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); if(m) return m[1]+'-'+pad2(m[2])+'-'+pad2(m[3]); m=s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})/); if(m) return m[3]+'-'+pad2(m[2])+'-'+pad2(m[1]); return ''; };
+const addM=(s,n)=>{ s=isoD(s); if(!s) return ''; const [y,m,d]=s.split('-').map(Number); const t=(y*12+(m-1))+n, ny=Math.floor(t/12), nm=t%12+1, dim=new Date(ny,nm,0).getDate(); return ny+'-'+pad2(nm)+'-'+pad2(Math.min(d,dim)); };
+const addD=(s,n)=>{ s=isoD(s); if(!s) return ''; const d=new Date(s+'T00:00:00Z'); if(isNaN(d)) return ''; d.setUTCDate(d.getUTCDate()+n); return d.toISOString().slice(0,10); };
 const CYC={monthly:1,quarterly:3,'half-yearly':6,halfyearly:6,'semi-annual':6,yearly:12,annual:12};
 const stepWord=n=>n===1?'Monthly':n===3?'Quarterly':n===6?'Half-yearly':n===12?'Yearly':n+'-monthly';
 
@@ -51,7 +53,7 @@ const hasEx=(c,m,k)=>{ if(k&&k.unlimited) return false; return [m.rateMono,m.rat
 window.__lease=null;
 function leaseDefault(c,kset){ const t=todayISO(), hi=addD(t,31); const inv=(DB.invoices||[]).filter(v=>v.cid===c.id&&v.from&&v.to&&!v.cancelled&&!v.void&&v.status!=='cancelled'), skips=DB.billSkips||{}; const covered=(s,e)=>inv.some(v=>v.from<=s&&v.to>=s)||!!skips[c.id+'|'+s+'|'+e]; const picks=[];
   (c.machines||[]).forEach(m=>{ if(m.status!=='Active') return; const k=kOf(c,m); if(!k||k.cancelled) return; if(kset&&!kset.has(k.id)) return; if(!(/lease/i.test(k.type||'')||num(m.monthlyLease)>0||m.billM||m.billQ||m.billY||num(c.monthlyLease)>0)) return;
-    const a=m.startDate||k.start; if(!a) return; const st=stepOf(c,m); let pick=null; const miss=[];
+    const a=isoD(m.startDate)||isoD(k.start); if(!a) return; const st=stepOf(c,m); let pick=null; const miss=[];
     for(let i=0;i<500;i++){ const s=addM(a,i*st); const e=addD(addM(a,(i+1)*st),-1); if(s>hi){ if(!pick) pick={from:s,to:e}; break; } if(!covered(s,e)){ if(!pick) pick={from:s,to:e}; else if(s<=t) miss.push({from:s,to:e}); } }
     if(!pick) return; const ex=hasEx(c,m,k); let exr=null; if(ex){ const es=exCycOf(c,m), P=addM(pick.from,-es); if(P>=a) exr={ef:P,et:addD(pick.from,-1)}; }
     picks.push({from:pick.from,to:pick.to,step:st,m,k,ex,exr,miss,start:a}); });
