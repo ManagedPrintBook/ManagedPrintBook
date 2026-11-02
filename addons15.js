@@ -19,7 +19,7 @@ if(typeof _bb==='function') window.buildBill=function(c,o,mode){
   const picked=K.filter(k=>set.has(k.id)), parts=picked.map(k=>({k,b:_bb(mk(msOf(k),k),o,mode)})).filter(p=>p.b.items.length||p.b.per.length);
   if(!parts.length) return _bb(mk([]),o,mode);
   const out=Object.assign({},parts[0].b,{c,items:[],per:[],warn:[]}), multi=parts.filter(p=>p.b.items.length).length>1;
-  parts.forEach(({k,b})=>{ const lab=kLabel(c,k)+(k.type?' · '+k.type:''); b.items.forEach(it=>{ it.cgrp=multi?lab:''; out.items.push(it); }); b.per.forEach(x=>out.per.push(x)); (b.warn||[]).forEach(w=>{ if(!out.warn.some(y=>JSON.stringify(y)===JSON.stringify(w))) out.warn.push(w); }); });
+  parts.forEach(({k,b})=>{ const lab=kLabel(c,k)+(k.type?' · '+k.type:''); b.items.forEach(it=>{ it.cgrp=multi?lab:''; it.kid=k.id; out.items.push(it); }); b.per.forEach(x=>out.per.push(x)); (b.warn||[]).forEach(w=>{ if(!out.warn.some(y=>JSON.stringify(y)===JSON.stringify(w))) out.warn.push(w); }); });
   return out; };
 const _bo=window.billOpts; if(typeof _bo==='function') window.billOpts=function(){ const o=_bo.apply(this,arguments); const bx=document.querySelectorAll('#detailArea .bk_on'); if(bx.length) o.kids=[...bx].filter(x=>x.checked).map(x=>x.value); return o; };
 const _vo=window.validOpts; if(typeof _vo==='function') window.validOpts=function(o){ const bx=document.querySelectorAll('#detailArea .bk_on'); if(bx.length&&!(o.kids||[]).length){ toast('Tick at least one contract to bill.',true); return false; } return _vo.apply(this,arguments); };
