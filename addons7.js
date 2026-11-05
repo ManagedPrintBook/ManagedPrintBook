@@ -125,6 +125,6 @@ function patch(){ if(typeof SD==='undefined'||SD.__xa7||!SD.__xa6) return; SD.__
  add('Contracts',[['QR Machine Labels','qr'],['Ticket SLA','sla'],['Parts on Tickets','parts'],['Customer Ratings','rate'],['Machine Health','hlth'],['Contract Profitability','cprof']]);
  add('Sales',[['Quote Follow-up','qfu'],['Arabic / Bilingual Invoices','arab']]);
  add('Accounts',[['Bank Reconciliation','bank'],['Purchase Orders','po']]);
- add('Admin',[['Page Permissions','perm'],['Import from Zoho Books','zoho']]); sdBuild(); }
+ add('Admin',[['Page Permissions','perm'],['Import from accounting software','zoho']]); sdBuild(); }
 setInterval(patch,800);
 })();
