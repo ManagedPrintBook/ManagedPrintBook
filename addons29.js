@@ -139,10 +139,22 @@ XA.reg('shi',{title:'Shipment By Item',render(){ const R=shData(), cs=(DB.custom
    +XA.kpis(XA.kpi('Items shipped',R.length,'')+XA.kpi('Units shipped',R.reduce((s,o)=>s+o.qty,0),'')+XA.kpi('Units returned',R.reduce((s,o)=>s+o.ret,0),'')+XA.kpi('Net amount','AED '+M(R.reduce((s,o)=>s+o.amt,0)),''))
    +(R.length?'<div class="card" style="overflow:auto"><table><thead><tr><th>Item</th><th class="n">Shipped</th><th class="n">Returned</th><th class="n">Net</th><th class="n">Net amount</th><th class="n">Invoices</th><th class="n">Customers</th><th>Last shipped</th></tr></thead><tbody>'+R.map((o,i)=>'<tr style="cursor:pointer" onclick="X29.shOpen('+i+')"><td><b>'+E(o.item)+'</b></td><td class="n">'+o.qty+'</td><td class="n">'+(o.ret||'')+'</td><td class="n">'+(o.qty-o.ret)+'</td><td class="n">'+M(o.amt)+'</td><td class="n">'+o.inv.size+'</td><td class="n">'+o.cus.size+'</td><td>'+E(dmy(o.last))+'</td></tr>'+(sh.open===i?'<tr><td colspan="8" style="background:#f6f8fc"><table><thead><tr><th>Date</th><th>Invoice</th><th>Customer</th><th class="n">Qty</th><th class="n">Rate</th><th class="n">Amount</th></tr></thead><tbody>'+o.lines.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(l=>'<tr><td>'+E(dmy(l.date))+'</td><td>'+E(l.inv)+'</td><td>'+E(cname(l.cid))+'</td><td class="n">'+l.qty+'</td><td class="n">'+M(l.rate)+'</td><td class="n">'+M(l.amount)+'</td></tr>').join('')+'</tbody></table></td></tr>':'')).join('')+'</tbody></table></div>':'<div class="card pad"><div class="empty">No items shipped in this period.</div></div>')+'<div class="xa-hint" style="margin-top:6px">Built from sales invoice lines in the date range, less sales returns. Click an item to see every shipment.</div>'; }});
 
+
+/* ---------------- 7. Wrong-prefix warning on Add / Edit Machine ---------------- */
+const OKP={lease:['MT-L','MT-RM'],fsma:['MT-SMF'],sale:['MT-SM'],amc:['MT-CM']};
+function expectPref(c,kno){ const K=(c&&c.contracts)||[]; let k=kno?K.find(x=>String(x.ref||x.no||'').trim().toLowerCase()===kno.toLowerCase()):null; if(!k&&K.length===1) k=K[0]; if(!k) return null; const t=String(k.type||'').toLowerCase(); const key=/fsma/.test(t)?'fsma':/ors|sale/.test(t)?'sale':/amc/.test(t)?'amc':/lease|rent/.test(t)?'lease':''; return key?{type:k.type,ok:OKP[key]}:null; }
+function wrapSave(){ const o=window.saveMachine; if(typeof o!=='function'||o.__g29) return; const f=function(){ try{ const eq=String((g('m_eqid')||{}).value||'').trim(), p=prefOf(eq), c=(DB.customers||[]).find(x=>x.id===activeCustomerId);
+    if(p&&c&&!window.__eqOk){ const e=expectPref(c,String((g('m_kno')||{}).value||'').trim()); if(e&&!e.ok.includes(p)){ askConfirm('Equipment ID '+eq+' ('+p+') does not match this '+e.type+' contract, which normally uses '+e.ok.join(' or ')+'. Save anyway?',()=>{ window.__eqOk=1; try{ o(); } finally{ window.__eqOk=0; } }); return; } } }catch(err){} return o.apply(this,arguments); }; f.__g29=1; window.saveMachine=f; }
+
+/* ---------------- 8. Landed-cost column on Purchase Bills list ---------------- */
+function wrapPur(){ const v=XA.views.pur; if(!v||v.__g29b) return; v.__g29b=1; const rd=v.render; v.render=function(){ let h=rd.apply(this,arguments); if(typeof h!=='string') return h; const L={}; arr('purchases').forEach(b=>{ L[b.no]=b.landed?b.landed.amt:0; });
+  h=h.replace('<th class="n">Total</th>','<th class="n">Landed cost</th><th class="n">Total</th>').replace('colspan="10"','colspan="11"');
+  return h.replace(/<tr>(?:(?!<\/tr>).)*?<b>(PB-\d+)<\/b>(?:(?!<\/tr>).)*?<\/tr>/g,row=>{ const no=/<b>(PB-\d+)<\/b>/.exec(row)[1], a=L[no]; return row.replace('<td class="n">','<td class="n">'+(a>0?M(a):'-')+'</td><td class="n">'); }); }; }
+
 /* ---------------- menu + role access + timers ---------------- */
 ['srt'].forEach(k=>{ if(XA.FIN&&!XA.FIN.includes(k)) XA.FIN.push(k); });
 function menu(){ if(typeof SD==='undefined'||SD.__x29||!SD.__xa) return; const grp=n=>SD.find(x=>x.g===n); if(!['Items','Sales','Admin'].every(n=>grp(n))) return; SD.__x29=1; const add=(n,l,k)=>{ const G=grp(n); if(G&&!G.items.some(i=>i[2]===k)) G.items.push([l,'xa',k]); };
   add('Items','Shipment By Item','shi'); add('Sales','Sales Returns','srt'); add('Admin','Control Settings','ctl29'); add('Admin','Equipment ID Types','eqi'); try{ sdBuild(); sdSync('xa'); }catch(e){} }
-setInterval(()=>{ menu(); injectEq(); wrapPb(); guards(); wrapRp(); },800);
-menu(); wrapPb(); guards(); wrapRp();
+setInterval(()=>{ menu(); injectEq(); wrapPb(); guards(); wrapRp(); wrapSave(); wrapPur(); },800);
+menu(); wrapPb(); guards(); wrapRp(); wrapSave(); wrapPur();
 })();
