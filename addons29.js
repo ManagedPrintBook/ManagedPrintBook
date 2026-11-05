@@ -38,9 +38,10 @@ X29.eqAssign=function(){ if(!isAdmin()){ toast('Only the Admin can do this.',tru
   (DB.customers||[]).forEach(c=>(c.machines||[]).forEach(m=>{ if(String(m.eqid||'').trim()) return; const p=kindOf(c,m); if(p) plan.push([m,p]); }));
   if(!plan.length){ toast('Every machine that can be classified already has an Equipment ID.'); return; }
   askConfirm('Give an Equipment ID to '+plan.length+' machine(s) that have none (by contract type)? Existing IDs are not changed.',()=>{ plan.forEach(([m,p])=>{ mx[p]++; m.eqid=fmtEq(p,mx[p]); n++; }); sv(); toast(n+' Equipment ID(s) assigned.'); XA.refresh(); }); };
+function cvHist(){ const L=[]; (DB.customers||[]).forEach(c=>(c.machines||[]).forEach(m=>(m.eqHist||[]).forEach(h=>L.push({c,m,h})))); L.sort((a,b)=>b.h.date.localeCompare(a.h.date)); return '<h3 style="margin:14px 0 6px">Conversion history</h3>'+(L.length?'<div class="card" style="overflow:auto"><table><thead><tr><th>Date</th><th>Customer</th><th>Machine</th><th>Old ID</th><th>New ID</th><th>By</th><th>Note</th></tr></thead><tbody>'+L.map(x=>'<tr><td>'+E(x.h.date)+'</td><td>'+E(x.c.name)+'</td><td>'+E((x.m.model||'')+' '+(x.m.serial||''))+'</td><td>'+E(x.h.from||'-')+'</td><td><b>'+E(x.h.to)+'</b></td><td>'+E(x.h.by)+'</td><td>'+E(x.h.note||'')+'</td></tr>').join('')+'</tbody></table></div>':'<div class="xa-hint">No conversions yet. Use the Convert button on a machine row.</div>'); }
 XA.reg('eqi',{title:'Equipment ID types',render(){ if(!isAdmin()) return NO; const mx=eqMax(); let blank=0; (DB.customers||[]).forEach(c=>(c.machines||[]).forEach(m=>{ if(!String(m.eqid||'').trim()) blank++; }));
   return H('Equipment ID types',B('Auto-assign blank IDs','X29.eqAssign()'))+'<div class="hint" style="margin:6px 0">In <b>Add Machine</b> pick the Equipment type and the next number is filled (you can still edit it). IDs look like <b>MT-L-0001</b>. Auto-assign uses each machine\'s contract type (Lease -> MT-L, Sale (ORS) -> MT-SM, FSMA -> MT-SMF, AMC -> MT-CM, Warehouse status -> MT-WH). <b>'+blank+'</b> machine(s) currently have no Equipment ID.</div>'
-   +'<div class="card" style="overflow:auto"><table><thead><tr><th>Prefix</th><th>Meaning</th><th class="n">Highest used</th><th>Next ID</th></tr></thead><tbody>'+EQC.map(e=>'<tr><td><b>'+e[0]+'</b></td><td>'+E(e[1])+'</td><td class="n">'+mx[e[0]]+'</td><td>'+nextEq(e[0])+'</td></tr>').join('')+'</tbody></table></div>'; }});
+   +'<div class="card" style="overflow:auto"><table><thead><tr><th>Prefix</th><th>Meaning</th><th class="n">Highest used</th><th>Next ID</th></tr></thead><tbody>'+EQC.map(e=>'<tr><td><b>'+e[0]+'</b></td><td>'+E(e[1])+'</td><td class="n">'+mx[e[0]]+'</td><td>'+nextEq(e[0])+'</td></tr>').join('')+'</tbody></table></div>'+cvHist(); }});
 
 /* ---------------- 2. Landed cost on purchase bills ---------------- */
 const LM=[['value','By value (cost of each line)'],['qty','By quantity'],['equal','Equally per line']];
@@ -150,6 +151,24 @@ function wrapSave(){ const o=window.saveMachine; if(typeof o!=='function'||o.__g
 function wrapPur(){ const v=XA.views.pur; if(!v||v.__g29b) return; v.__g29b=1; const rd=v.render; v.render=function(){ let h=rd.apply(this,arguments); if(typeof h!=='string') return h; const L={}; arr('purchases').forEach(b=>{ L[b.no]=b.landed?b.landed.amt:0; });
   h=h.replace('<th class="n">Total</th>','<th class="n">Landed cost</th><th class="n">Total</th>').replace('colspan="10"','colspan="11"');
   return h.replace(/<tr>(?:(?!<\/tr>).)*?<b>(PB-\d+)<\/b>(?:(?!<\/tr>).)*?<\/tr>/g,row=>{ const no=/<b>(PB-\d+)<\/b>/.exec(row)[1], a=L[no]; return row.replace('<td class="n">','<td class="n">'+(a>0?M(a):'-')+'</td><td class="n">'); }); }; }
+
+
+/* ---------------- 9. Convert machine type in one click (keeps the old Equipment ID in history) ---------------- */
+X29.cvPick=function(sel){ const ov=g('xaFm'); if(!ov) return; const inp=ov.querySelector('[data-k="eq"]'); if(inp&&sel.value) inp.value=nextEq(sel.value); };
+X29.cvOpen=function(cid,mid){ if(role()==='sales'||role()==='viewer'){ toast('Only a Manager or Admin can convert a machine.',true); return; } if(!can('edit')){ denied('edit'); return; }
+  const c=(DB.customers||[]).find(x=>x.id===cid), m=c&&c.machines.find(x=>x.id===mid); if(!m) return;
+  const cur=prefOf(m.eqid), def=kindOf(c,m)&&kindOf(c,m)!==cur?kindOf(c,m):'', ks=c.contracts||[];
+  const kl=k=>(k.type||'Contract')+(k.ref||k.no?' '+(k.ref||k.no):'')+(k.start?' ('+k.start+')':'');
+  const html='<div class="xa-hint" style="margin:0 0 8px">Machine <b>'+E(m.model||'')+'</b> - Sr.# '+E(m.serial||'-')+'<br>Current Equipment ID: <b>'+E(m.eqid||'none')+'</b></div>'
+   +'<label style="font-size:.8rem">New equipment type</label><select class="xa-in" data-k="t" onchange="X29.cvPick(this)"><option value="">-- choose --</option>'+EQC.map(e=>'<option value="'+e[0]+'"'+(e[0]===def?' selected':'')+'>'+e[0]+' - '+E(e[1])+'</option>').join('')+'</select>'
+   +'<label style="font-size:.8rem;display:block;margin-top:8px">New Equipment ID (you can edit it)</label><input class="xa-in" data-k="eq" value="'+E(def?nextEq(def):'')+'">'
+   +'<label style="font-size:.8rem;display:block;margin-top:8px">Move to contract (optional)</label><select class="xa-in" data-k="kid"><option value="">Keep current contract</option>'+ks.map(k=>'<option value="'+k.id+'"'+(k.id===m.contractId?' disabled':'')+'>'+E(kl(k))+'</option>').join('')+'</select>'
+   +'<label style="font-size:.8rem;display:block;margin-top:8px">Reason / note</label><input class="xa-in" data-k="note" placeholder="e.g. rental bought by customer, moved to FSMA">';
+  XA.fm('Convert machine type',[{k:'_h',type:'html',html:html}],o=>{ const eq=String(o.eq||'').trim(); if(!eq){ toast('Enter the new Equipment ID.',true); return false; }
+    if(eq.toLowerCase()===String(m.eqid||'').toLowerCase()&&!o.kid){ toast('Nothing to change.',true); return false; }
+    const dup=(DB.customers||[]).some(cc=>(cc.machines||[]).some(x=>x!==m&&String(x.eqid||'').trim().toLowerCase()===eq.toLowerCase())); if(dup){ toast('Equipment ID '+eq+' is already used by another machine.',true); return false; }
+    (m.eqHist=m.eqHist||[]).push({date:today(),from:m.eqid||'',to:eq,by:(window.curUser&&curUser()||{}).name||'',note:String(o.note||'').trim(),kfrom:m.contractId||'',kto:o.kid||''});
+    m.eqid=eq; if(o.kid) m.contractId=o.kid; sv(); try{ renderAll(); }catch(e){} toast('Converted: '+(m.eqHist[m.eqHist.length-1].from||'none')+' -> '+eq+'. Old ID kept in history.'); XA.refresh(); },{w:520,note:'The old Equipment ID is kept in the machine\'s conversion history (Admin -> Equipment ID Types).'}); };
 
 /* ---------------- menu + role access + timers ---------------- */
 ['srt'].forEach(k=>{ if(XA.FIN&&!XA.FIN.includes(k)) XA.FIN.push(k); });
