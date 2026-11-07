@@ -20,15 +20,17 @@ const stockOf=name=>{ const n=String(name||'').trim().toLowerCase(); return (DB.
 
 function search(q,list){ const qt=tok(q); if(!qt.length) return {hits:[],more:[]};
   const qm=[...new Set(qt.filter(x=>/\d{3,}/.test(x)).map(x=>x.replace(/[^0-9]/g,'')).filter(x=>x.length>=3))], words=qt.filter(x=>!STOP.has(x)&&!/\d{3,}/.test(x)&&x.length>=2), qb=brandsIn(qt), full=String(q).trim().toLowerCase();
-  const hits=[], more=[];
+  const hits=[], more=[], cmp0=x=>String(x).toLowerCase().replace(/[^a-z0-9]/g,''), qc=cmp0(q), isCode=qt.length<=3&&qc.length>=4&&/\d/.test(qc)&&/[a-z]/.test(qc);
   list.forEach(p=>{ const hay=(p.n+' '+(p.sku||'')+' '+(p.desc||'')).toLowerCase(), ht=tok(hay), hs=new Set(ht), pm=models(hay); let sc=0;
     const ib=brandsIn(ht); if(qb.length&&ib.length&&!ib.some(b=>qb.includes(b))) return;         /* a Canon search never lists Konica / Kyocera parts */
+    if(isCode&&cmp0(hay).includes(qc)){ hits.push({p,sc:30+(p.n.trim().toLowerCase()===full?50:0),mh:1,cover:1}); return; }   /* part code typed with or without dash/space: TK-8525, TK8525, EXV 51 */
     const mh=qm.filter(m=>pm.has(m)).length; sc+=mh*10;
     const wh=words.filter(w=>hs.has(w)||hay.includes(w)).length; sc+=wh;
     if(p.n.trim().toLowerCase()===full) sc+=50;
     const cover=words.length?wh/words.length:1;
     if(qm.length){ if(mh>0) hits.push({p,sc,mh,cover}); else if(words.length>=2&&cover>=0.75&&!/\d{3,}/.test(p.n)) more.push({p,sc,mh,cover}); }
     else if(words.length){ if(cover>=0.999||(words.length>=4&&cover>=0.7)) hits.push({p,sc,mh,cover}); else if(cover>=0.5) more.push({p,sc,mh,cover}); } });
+  if(isCode&&hits.some(h=>h.sc>=30)) more.length=0;
   const cmp=(a,b)=>b.sc-a.sc||a.p.n.localeCompare(b.p.n); hits.sort(cmp); more.sort(cmp); return {hits,more}; }
 
 function avail(p){ const s=stockOf(p.n), qty=p.stock!=null?+p.stock:(s?+s.qty:null), min=s?+s.min||0:0;
