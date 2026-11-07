@@ -30,7 +30,10 @@ function search(q,list){ const qt=tok(q); if(!qt.length) return {hits:[],more:[]
     const cover=words.length?wh/words.length:1;
     if(qm.length){ if(mh>0) hits.push({p,sc,mh,cover}); else if(words.length>=2&&cover>=0.75&&!/\d{3,}/.test(p.n)) more.push({p,sc,mh,cover}); }
     else if(words.length){ if(cover>=0.999||(words.length>=4&&cover>=0.7)) hits.push({p,sc,mh,cover}); else if(cover>=0.5) more.push({p,sc,mh,cover}); } });
-  if(isCode&&hits.some(h=>h.sc>=30)) more.length=0;
+  if(isCode&&hits.some(h=>h.sc>=30)){ more.length=0;   /* related products: other items for the same machines the matched parts fit (same brand) */
+    const hm=new Map(), hb=new Set(), inH=new Set(hits.map(h=>h.p)); hits.forEach(h=>{ const t=(h.p.n+' '+(h.p.sku||'')+' '+(h.p.desc||'')).toLowerCase(); brandsIn(tok(t)).forEach(b=>hb.add(b)); models(t).forEach(m=>{ if(m.length>=4&&!qc.includes(m)) hm.set(m,(hm.get(m)||0)+1); }); });
+    list.forEach(p=>{ if(inH.has(p)) return; const t=(p.n+' '+(p.sku||'')+' '+(p.desc||'')).toLowerCase(), ib=brandsIn(tok(t)); if(hb.size&&ib.length&&!ib.some(b=>hb.has(b))) return; const pm=models(t); let k=0; hm.forEach((c,m)=>{ if(pm.has(m)) k++; }); if(k) more.push({p,sc:k,mh:k,cover:0}); });
+    more.sort((a,b)=>b.sc-a.sc||a.p.n.localeCompare(b.p.n)); more.length=Math.min(more.length,30); }
   const cmp=(a,b)=>b.sc-a.sc||a.p.n.localeCompare(b.p.n); hits.sort(cmp); more.sort(cmp); return {hits,more}; }
 
 function avail(p){ const s=stockOf(p.n), qty=p.stock!=null?+p.stock:(s?+s.qty:null), min=s?+s.min||0:0;
@@ -50,7 +53,7 @@ window.qSug=function(inp,i,ctx){ window.qCtx=ctx||'q'; try{ qCtx=ctx||'q'; }catc
   if(!list.length){ html='<div style="padding:10px;color:#667">No saved item matches — keep typing to use it as a new item (add it under Stock to save price/cost).</div>'; }
   else{ const nH=raw?r.hits.length:list.length, av=list.slice(0,nH).map(avail), inS=av.filter(a=>a.k==='in'||a.k==='low'), tot=inS.reduce((s,a)=>s+(a.qty||0),0), out=av.filter(a=>a.k==='out').length;
     html='<div style="padding:7px 12px;background:#f3f5f8;border-bottom:1px solid #e3e6ec;position:sticky;top:0"><b>'+nH+'</b> '+(raw?'related':'')+' item(s) · <span style="color:#166534"><b>'+inS.length+'</b> available ('+tot+' pcs)</span> · <span style="color:#b91c1c"><b>'+out+'</b> out of stock</span></div>';
-    list.forEach((p,k)=>{ if(raw&&k===r.hits.length&&r.more.length) html+='<div style="padding:6px 12px;background:#fafbfc;color:#667;font-weight:600;border-bottom:1px solid #eee">Similar items</div>'; html+=row(p,k,raw&&k<r.hits.length&&k===0&&r.hits[0].sc>=50?'Exact match':''); }); }
+    list.forEach((p,k)=>{ if(raw&&k===r.hits.length&&r.more.length) html+='<div style="padding:6px 12px;background:#fafbfc;color:#667;font-weight:600;border-bottom:1px solid #eee">Related products</div>'; html+=row(p,k,raw&&k<r.hits.length&&k===0&&r.hits[0].sc>=50?'Exact match':''); }); }
   box.innerHTML=html; box.style.width='520px'; const rc2=inp.getBoundingClientRect(); box.style.left=Math.max(4,Math.min(rc2.left,innerWidth-540))+'px'; box.style.top=Math.min(rc2.bottom+2,innerHeight-350)+'px'; box.style.display=''; };
 window.qSug.__g33=1; window.__g33=search;
 })();
