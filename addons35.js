@@ -26,19 +26,25 @@ setInterval(function(){ try{
 
 /* 3: Zoho-style item search - works from the first letter, and shows the list when the box is clicked */
 function wrapSug(){ const o=window.qSug; if(typeof o!=='function'||o.__x35) return;
+  const cp=x=>String(x||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+  const E=s=>(typeof esc==='function'?esc(String(s==null?'':s)):String(s));
+  const st=p=>{ const s=(window.DB&&DB.stock||[]).find(x=>String(x.item||'').trim().toLowerCase()===String(p.n||'').trim().toLowerCase()), qty=p.stock!=null?+p.stock:(s?+s.qty:null);
+    if(qty==null) return ''; return qty>0?'<span style="background:#dcfce7;color:#166534;border-radius:6px;padding:1px 7px;font-size:.74rem;font-weight:700">'+qty+' in stock</span>':'<span style="background:#fee2e2;color:#b91c1c;border-radius:6px;padding:1px 7px;font-size:.74rem;font-weight:700">Out of stock</span>'; };
+  /* dash / space / case-insensitive match: "ex-v", "exv", "EX V" all find EXV-51 ...; names/SKU starting with it come first */
+  function quick(raw){ const c=cp(raw), starts=[], has=[]; if(!c) return [];
+    qProducts().forEach(p=>{ const n=String(p.n||''), sk=String(p.sku||''), nc=cp(n), sc=cp(sk), toks=n.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+      if(nc.startsWith(c)||sc.startsWith(c)||toks.some(t=>t.startsWith(c))||cp(toks.join(''))===c) starts.push(p);
+      else if(nc.includes(c)||sc.includes(c)||cp(p.desc||'').includes(c)) has.push(p); });
+    const srt=(a,b)=>String(a.n).localeCompare(String(b.n)); starts.sort(srt); has.sort(srt); return starts.concat(has).slice(0,80); }
+  function render(inp,i,ctx,list,raw){ window.qCtx=ctx||'q'; try{ qCtx=ctx||'q'; }catch(e){} try{ qSugList=list; }catch(e){}
+    const box=g('qSug'); if(!box) return;
+    box.innerHTML=list.length?'<div style="padding:7px 12px;background:#f3f5f8;border-bottom:1px solid #e3e6ec;position:sticky;top:0"><b>'+list.length+'</b> item(s) matching “'+E(raw)+'”</div>'+list.map((p,k)=>'<div onclick="qPick('+i+','+k+')" style="padding:7px 12px;cursor:pointer;display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid #f0f2f5" onmouseover="this.style.background=\'#eaf1ff\'" onmouseout="this.style.background=\'\'"><span>'+(p.sku?'<b>'+E(p.sku)+'</b> · ':'')+E(p.n)+'</span><span style="white-space:nowrap">'+st(p)+'</span></div>').join(''):'<div style="padding:10px;color:#667">No saved item matches “'+E(raw)+'” — keep typing to use it as a new item.</div>';
+    box.style.width='520px'; const rc=inp.getBoundingClientRect(); box.style.left=Math.max(4,Math.min(rc.left,innerWidth-540))+'px'; box.style.top=Math.min(rc.bottom+2,innerHeight-350)+'px'; box.style.display=''; }
   const w=function(inp,i,ctx){ const raw=String(inp.value||'').trim();
-    if(raw.length!==1) return o.apply(this,arguments);
-    window.qCtx=ctx||'q'; try{ qCtx=ctx||'q'; }catch(e){}
-    const box=g('qSug'); if(!box||typeof qProducts!=='function') return;
-    const q=raw.toLowerCase(), all=qProducts(), starts=[], has=[];
-    all.forEach(p=>{ const n=String(p.n||'').toLowerCase(), s=String(p.sku||'').toLowerCase(); if(n.startsWith(q)||s.startsWith(q)||n.split(/[^a-z0-9]+/).some(x=>x.startsWith(q))) starts.push(p); else if((n+' '+s).includes(q)) has.push(p); });
-    const sorter=(a,b)=>String(a.n).localeCompare(String(b.n)); starts.sort(sorter); has.sort(sorter);
-    const list=starts.concat(has).slice(0,80); try{ qSugList=list; }catch(e){}
-    const E=s=>(typeof esc==='function'?esc(String(s==null?'':s)):String(s));
-    const st=p=>{ const s=(window.DB&&DB.stock||[]).find(x=>String(x.item||'').trim().toLowerCase()===String(p.n||'').trim().toLowerCase()), qty=p.stock!=null?+p.stock:(s?+s.qty:null);
-      if(qty==null) return ''; return qty>0?'<span style="background:#dcfce7;color:#166534;border-radius:6px;padding:1px 7px;font-size:.74rem;font-weight:700">'+qty+' in stock</span>':'<span style="background:#fee2e2;color:#b91c1c;border-radius:6px;padding:1px 7px;font-size:.74rem;font-weight:700">Out of stock</span>'; };
-    box.innerHTML=list.length?'<div style="padding:7px 12px;background:#f3f5f8;border-bottom:1px solid #e3e6ec;position:sticky;top:0"><b>'+list.length+'</b> item(s) starting with “'+E(raw)+'”</div>'+list.map((p,k)=>'<div onclick="qPick('+i+','+k+')" style="padding:7px 12px;cursor:pointer;display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid #f0f2f5" onmouseover="this.style.background=\'#eaf1ff\'" onmouseout="this.style.background=\'\'"><span>'+(p.sku?'<b>'+E(p.sku)+'</b> · ':'')+E(p.n)+'</span><span style="white-space:nowrap">'+st(p)+'</span></div>').join(''):'<div style="padding:10px;color:#667">No item starts with “'+E(raw)+'”.</div>';
-    box.style.width='520px'; const rc=inp.getBoundingClientRect(); box.style.left=Math.max(4,Math.min(rc.left,innerWidth-540))+'px'; box.style.top=Math.min(rc.bottom+2,innerHeight-350)+'px'; box.style.display=''; };
+    if(cp(raw).length>=1&&cp(raw).length<=3) return render(inp,i,ctx,quick(raw),raw);       /* V, EX, EXV */
+    const r=o.apply(this,arguments); const box=g('qSug');
+    if(raw&&box&&/No saved item matches/.test(box.textContent||'')){ const q=quick(raw); if(q.length) render(inp,i,ctx,q,raw); }   /* e.g. "ex-v5" with a dash */
+    return r; };
   Object.keys(o).forEach(k=>{ w[k]=o[k]; }); w.__x35=1; window.qSug=w; }
 setInterval(function(){ try{ wrapSug(); }catch(e){} },700);
 /* clicking an already-filled item box shows the list again (Zoho behaviour) */
