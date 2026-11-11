@@ -69,3 +69,7 @@ billed to two companies for the same dates.
 ## Add-on 27 (v20261031b)
 - **addons27.js** — Contracts: Standby Machines · Used Machines & Trade-in. Items: Van & Warehouse Stock. Suppliers: Warranty / RMA. Customers: Customer Price Lists (applied automatically when picking an item on a quote; warning if a quote is saved below the agreed price). Sales: Quote Acceptance Links · Win / Loss (reason asked when a quote is Declined). Accounts: Invoice Disputes (a disputed invoice drops out of overdue / ageing / bell while open). Reports: Ask Your Data (rule-based, runs in the browser — no outside service). Admin: Cost Visibility (hides cost / margin / profit columns on screen for chosen roles; screen masking only, not server-side security).
 - **quote.html + supabase/phase4.sql** — run phase4.sql once in Supabase → SQL Editor. Customers open `/quote?t=…` (no login), see the quote, and accept (typed name + signature) or decline. Use Sales → Quote Acceptance Links → Check responses (the app also checks every 3 minutes) to apply the answer to the quote.
+
+## Add-on 36 (addons36.js) — Trusted Devices
+Admin → Trusted Devices: each user's devices with name and last-login time. Tick = trusted; untick = that device is signed out within ~15 s,
+cannot sign in again, and the Admin gets a 🔔 notification (also when a new device signs in). Run `supabase/phase5.sql` once in Supabase → SQL Editor.
