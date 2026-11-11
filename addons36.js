@@ -26,7 +26,7 @@ async function kick(){ if(kicking) return; kicking=true; const s=SB();
   try{ await s.rpc('device_kicked',{p_device:devId()}); }catch(e){}
   try{ window.__dirty=false; await s.auth.signOut(); }catch(e){}
   try{ sessionStorage.clear(); }catch(e){}
-  alert('This device is no longer trusted, so you have been signed out of Managed Print Book.\n\nPlease contact the Admin.');
+  alert('You have been signed out of Managed Print Book (this device is no longer trusted, or the password was changed on another device).\n\nSign in again, or contact the Admin.');
   location.reload(); }
 
 /* ---- at sign-in: register device; if it is not trusted, stop right here ---- */
@@ -70,8 +70,8 @@ setInterval(pollAlerts,20000); setTimeout(pollAlerts,4000);
 const oBell=window.renderBell;
 if(typeof oBell==='function'&&!oBell.__x36){ const w=function(){ const r=oBell.apply(this,arguments);
   try{ if(isAdmin()&&st.alerts.length){ const cnt=g('bellCount'), pn=g('bellPanel'); if(cnt&&pn){ cnt.textContent=(parseInt(cnt.textContent)||0)+st.alerts.length; cnt.classList.add('on'); cnt.style.background='#dc2626';
-      const ic={new:'🆕',untrusted:'🚫',kicked:'⛔',trusted:'✅'};
-      (pn.querySelector('.bp-h')||pn).insertAdjacentHTML(pn.querySelector('.bp-h')?'afterend':'afterbegin','<div class="bsec"><span>📱 Device security</span><span class="badge bad">'+st.alerts.length+'</span></div>'+st.alerts.map(a=>'<div class="bitem '+(a.kind==='trusted'?'warn':'bad')+'"><div><b>'+(ic[a.kind]||'📱')+' '+E(a.message)+'</b><div class="kdept">'+E(fmt(a.at))+'</div></div><div class="actions"><button class="btn sm ghost" onclick="devAlertSeen('+a.id+')">✕ Close</button><button class="btn sm ghost" onclick="closeBell();go(\'xa\',\'devs\')">Devices</button></div></div>').join('')); } } }catch(e){}
+      const ic={new:'🆕',untrusted:'🚫',kicked:'⛔',trusted:'✅',password:'🔑'};
+      (pn.querySelector('.bp-h')||pn).insertAdjacentHTML(pn.querySelector('.bp-h')?'afterend':'afterbegin','<div class="bsec"><span>📱 Device security</span><span class="badge bad">'+st.alerts.length+'</span></div>'+st.alerts.map(a=>'<div class="bitem '+(a.kind==='trusted'||a.kind==='password'?'warn':'bad')+'"><div><b>'+(ic[a.kind]||'📱')+' '+E(a.message)+'</b><div class="kdept">'+E(fmt(a.at))+'</div></div><div class="actions"><button class="btn sm ghost" onclick="devAlertSeen('+a.id+')">✕ Close</button><button class="btn sm ghost" onclick="closeBell();go(\'xa\',\'devs\')">Devices</button></div></div>').join('')); } } }catch(e){}
   return r; }; w.__x36=1; try{ renderBell=w; }catch(e){} window.renderBell=w; }
 
 /* ---- menu entry (Admin group) ---- */

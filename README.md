@@ -73,3 +73,7 @@ billed to two companies for the same dates.
 ## Add-on 36 (addons36.js) — Trusted Devices
 Admin → Trusted Devices: each user's devices with name and last-login time. Tick = trusted; untick = that device is signed out within ~15 s,
 cannot sign in again, and the Admin gets a 🔔 notification (also when a new device signs in). Run `supabase/phase5.sql` once in Supabase → SQL Editor.
+
+## Add-on 37 (addons37.js) — Change password
+Header "🔑 Password" button next to Logout (current + new password twice, show/hide). The reset-email link opens a "Set a new password" screen.
+After a password change the user's other devices are signed out and the Admin gets a 🔔 alert. Run `supabase/phase6.sql` once (after phase5.sql).
